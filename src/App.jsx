@@ -145,6 +145,7 @@ export default function App(){
  const [prayerDiscard,setPrayerDiscard]=useState([]);
  const [prayerDrawn,setPrayerDrawn]=useState(false);
  const [characterDraws,setCharacterDraws]=useState(0);
+ const [supportDraws,setSupportDraws]=useState(0);
  const [active,setActive]=useState(null);
  const [bench,setBench]=useState([]);
  const [hp,setHp]=useState({});
@@ -174,7 +175,7 @@ export default function App(){
    const supportOrder=(configuredSupports.length?configuredSupports:supports).sort(()=>Math.random()-.5);
    const prayerOrder=[...prayerCards].sort(()=>Math.random()-.5);
    setDeck(order.slice(3));setHand(drawn);setSupportHand(supportOrder.slice(0,2));setSupportDeck(supportOrder.slice(2));setDiscard([]);setShield(0);setEnemyDot(null);setGaUltimateUsed(false);setPrayerDeck(prayerOrder);setPrayerDiscard([]);setPrayerDrawn(false);setActive(null);setBench([]);setHp(values);setPlayerStatus({burn:0,plague:0,stun:0});setEnemyWeaken(0);setJonahUsed(false);setGideonUsed(false);setEstherSupportUsed(false);
-   setEnemyHp(currentOpponent.hp);setPrayers(0);setCharacterDraws(0);setTurn("setup");setWinner(null);
+   setEnemyHp(currentOpponent.hp);setPrayers(0);setCharacterDraws(0);setSupportDraws(0);setTurn("setup");setWinner(null);
    setLog(["Draw 3 Character cards. Choose one for your Active position."]);
    setPage("practice");
  };
@@ -191,9 +192,10 @@ export default function App(){
  const drawSupport=()=>{
    if(turn!=="player"||winner)return;
    if(supportHand.length>=3){addLog("✨ Your Support Hand is full (3/3). Use or discard a Support card first.");return;}
+   if(supportDraws>=2){addLog("✨ You have already used both Support draws this round (2/2).");return;}
    if(!supportDeck.length){addLog("Your Support deck is empty.");return;}
    const [next,...rest]=supportDeck;
-   setSupportDeck(rest);setSupportHand(h=>[...h,next]);addLog("You drew Support: "+next.name+".");
+   setSupportDeck(rest);setSupportHand(h=>[...h,next]);setSupportDraws(c=>c+1);addLog("You drew Support: "+next.name+". Support draws: "+(supportDraws+1)+"/2.");
  };
  const playSupport=s=>{if(turn!=="player"||winner||!active)return;
    if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));showHeal(20);addLog("🍞 Loaves & Fishes restored 20 HP.");}
@@ -233,7 +235,7 @@ export default function App(){
    addLog("🗑️ Support "+s.name+" was discarded.");
  };
  const playCard=name=>{
-   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);setCharacterDraws(0);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}showEntry(name);addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
+   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);setCharacterDraws(0);setSupportDraws(0);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}showEntry(name);addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
    if(bench.length>=3){addLog("Your Bench is full.");return;}
    setBench(b=>[...b,name]);setHand(h=>h.filter(x=>x!==name));addLog(name+" was placed on the Bench.");
  };
@@ -331,7 +333,7 @@ export default function App(){
   <section className="battle-dashboard">
    <div className="resource">
     <div className="resource-main">🙏 <span>PRAYERS</span> <b>{prayers}/10</b></div>
-    <div className="resource-details"><span>🎴 {deck.length} Character Deck</span><span>🖐️ {hand.length}/3 Character Hand</span><span>🔁 {characterDraws}/2 Character Draws</span><span>✨ {supportDeck.length} Supports</span><span>🛡️ {supportHand.length}/3 Support Hand</span><span>🙏 {prayerDeck.length} Prayer Deck</span><span>🗑️ {discard.length} Discard</span></div>
+    <div className="resource-details"><span>🎴 {deck.length} Character Deck</span><span>🖐️ {hand.length}/3 Character Hand</span><span>🔁 {characterDraws}/2 Character Draws</span><span>✨ {supportDeck.length} Supports</span><span>🛡️ {supportHand.length}/3 Support Hand</span><span>🔁 {supportDraws}/2 Support Draws</span><span>🙏 {prayerDeck.length} Prayer Deck</span><span>🗑️ {discard.length} Discard</span></div>
    </div>
    <div className="controls">
     <div className="action-group attack-group">
@@ -345,14 +347,14 @@ export default function App(){
      <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button>
      <button className="end-turn" onClick={endTurn} disabled={turn!=="player"||!!winner}>⏭️ End Turn</button>
      <button onClick={draw} disabled={turn!=="player"||!!winner||hand.length>=3||characterDraws>=2}>🎴 Draw Character ({characterDraws}/2)</button>
-     <button onClick={drawSupport} disabled={turn!=="player"||!!winner||supportHand.length>=3}>✨ Draw Support ({supportHand.length}/3)</button>
+     <button onClick={drawSupport} disabled={turn!=="player"||!!winner||supportHand.length>=3||supportDraws>=2}>✨ Draw Support ({supportDraws}/2)</button>
     </div>
    </div>
   </section>
 
   <section className="battle-hands">
    <div className="hand"><div className="hand-heading"><h3>YOUR CHARACTER HAND</h3><span>{hand.length}/3 cards</span></div>{hand.length?<div className="hand-cards">{hand.map(n=><div className="hand-card-wrap" key={n}><Card card={characters[n]} hp={hp[n]} onClick={()=>playCard(n)}/><button className="discard-card" onClick={()=>discardCharacter(n)} disabled={turn==="enemy"||!!winner}>🗑️ Discard</button></div>)}</div>:<p>No Character cards in hand.</p>}</div>
-   <div className="support-hand"><div className="hand-heading"><h3>✨ YOUR SUPPORT HAND</h3><span>{supportHand.length}/3 cards</span></div>{supportHand.length?<div className="support-cards">{supportHand.map(s=><div className="support-card-wrap" key={s.id}><button className="support-card" onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button><button className="discard-card support-discard" onClick={()=>discardSupport(s)} disabled={turn==="enemy"||!!winner}>🗑️ Discard</button></div>)}</div>:<p>No Support cards in hand.</p>}</div>
+   <div className="support-hand"><div className="hand-heading"><h3>✨ YOUR SUPPORT HAND</h3><span>{supportHand.length}/3 cards • {supportDraws}/2 draws</span></div>{supportHand.length?<div className="support-cards">{supportHand.map(s=><div className="support-card-wrap" key={s.id}><button className="support-card" onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button><button className="discard-card support-discard" onClick={()=>discardSupport(s)} disabled={turn==="enemy"||!!winner}>🗑️ Discard</button></div>)}</div>:<p>No Support cards in hand.</p>}</div>
   </section>
 
   {winner&&<div className="overlay"><div className="result"><h2>{winner==="Player"?"🎉 VICTORY!":"💀 DEFEAT"}</h2><p>{winner==="Player"?"You defeated Training Pharaoh!":"Training Pharaoh wins."}</p><button onClick={start}>Practice Again</button></div></div>}
