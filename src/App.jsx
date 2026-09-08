@@ -21,6 +21,18 @@ const prayerCards=[
  {id:"united-prayer-2",name:"United Prayer",icon:"🙏🙏",amount:2,text:"Gain 2 Prayers."},
  {id:"powerful-prayer-2",name:"Powerful Prayer",icon:"✨🙏✨",amount:3,text:"Gain 3 Prayers."}
 ];
+const battlefieldLines={
+  David:"🪨 David steps onto the battlefield, stone in hand and faith unshaken.",
+  Jonah:"🐋 Jonah reluctantly arrives at the battlefield... he was told this would not involve another whale.",
+  Daniel:"🦁 Daniel walks into the battlefield with the confidence of a man who has met lions before.",
+  Gideon:"🏺 Gideon arrives with jars, trumpets, and a suspiciously small army.",
+  Moses:"🌊 Moses parts the way to the battlefield.",
+  Michael:"⚔️ Michael descends to the battlefield from heaven, wings spread and sword ready.",
+  Elijah:"🔥 Elijah calls down fire as he enters the battlefield.",
+  Esther:"👑 Esther enters the battlefield—for such a time as this.",
+  GA:"🔴 The General Overseer arrives. The meeting is now in session... and it may take fifteen more minutes."
+};
+const entryLine=name=>battlefieldLines[name]||characters[name].name+" entered the battlefield.";
 const supports=[
  {id:"loaves",name:"Loaves & Fishes",icon:"🍞",text:"Heal your Active Character for 20 HP."},
  {id:"armor",name:"Armor of God",icon:"🛡️",text:"Prevent 15 damage from the next enemy attack."},
@@ -92,7 +104,7 @@ export default function App(){
    const [next,...rest]=deck;setDeck(rest);setHand(h=>[...h,next]);addLog("You drew "+next+".");
  };
  const playCard=name=>{
-   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(name+" entered the Active position! Draw from the Prayer Deck.");return;}
+   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
    if(bench.length>=3){addLog("Your Bench is full.");return;}
    setBench(b=>[...b,name]);setHand(h=>h.filter(x=>x!==name));addLog(name+" was placed on the Bench.");
  };
@@ -115,6 +127,11 @@ export default function App(){
     }
     setPrayerDrawn(false);setTurn("player");addLog("Your turn! Draw from the Prayer Deck.");
    },650);
+ };
+ const endTurn=()=>{
+   if(turn!=="player"||!active||winner)return;
+   addLog("🙏 You end your turn and save your remaining Prayers.");
+   enemyTurn(hp[active]);
  };
  const attack=(mode="basic")=>{
    if(turn!=="player"||!active||winner)return;
@@ -148,6 +165,7 @@ export default function App(){
    <div className="controls"><div className="resource">🙏 PRAYERS: <b>{prayers}/10</b> • 🎴 CHARACTERS: {deck.length} • ✨ SUPPORTS: {supportDeck.length} • 🙏 PRAYER DECK: {prayerDeck.length} • 🗑️ SUPPORT DISCARD: {discard.length} • 📿 PRAYER DISCARD: {prayerDiscard.length}</div>
     {active&&active!=="GA"&&<button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button>}{active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
     <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button>
+    <button className="end-turn" onClick={endTurn} disabled={turn!=="player"||!!winner}>⏭️ End Turn</button>
     <button onClick={draw} disabled={turn==="enemy"||!!winner}>🎴 Draw Character</button><button onClick={drawSupport} disabled={turn==="enemy"||!!winner}>✨ Draw Support</button>
    </div>
    <div className="hand"><h3>YOUR CHARACTER HAND</h3>{hand.length?hand.map(n=><Card key={n} card={characters[n]} hp={hp[n]} onClick={()=>playCard(n)}/>):<p>No Character cards in hand.</p>}</div><div className="support-hand"><h3>✨ YOUR SUPPORT HAND</h3>{supportHand.length?supportHand.map(s=><button className="support-card" key={s.id} onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button>):<p>No Support cards in hand.</p>}</div>
