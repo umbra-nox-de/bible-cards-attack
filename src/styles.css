@@ -3,3 +3,11 @@
 .support-hand{margin:20px auto;padding:16px;border-top:1px solid #604b32;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;max-width:900px}.support-hand h3{width:100%;margin:0}.support-card{width:210px;min-height:125px;background:linear-gradient(145deg,#365b46,#1e392d);border-color:#86b07a;text-align:left}.support-card small,.support-card em{display:block;margin-top:10px}.support-card em{font-size:.75rem;color:#cfe5bc}.support-card:hover{background:#426d53}
 
 .red-card{background:linear-gradient(145deg,#8e2424,#3b0e0e);color:#fff0e0;border-color:#ff7770}.red-card .hp{color:#24170d}.ultimate{background:linear-gradient(145deg,#8a6b1f,#49360c);border-color:#f4d35e}.unlock-box{max-width:560px;margin:20px auto;padding:20px;border:1px solid #76572f;border-radius:16px;background:#211913}.unlock-box input{min-width:240px;margin:6px}.status{color:#ffcf6b;font-weight:bold}.character-card{position:relative}.red-card .card-top{color:#fff0e0}
+
+
+.bench-slot{display:flex;flex-direction:column;align-items:center}
+.bench-slot .character-card{cursor:pointer}
+.sell-card{margin-top:4px;background:#6f4b2f;border-color:#b9874f;font-size:.85rem;padding:7px 10px}
+.sell-card:hover{background:#8b5d37}
+.second-attack{background:#7a4d24;border-color:#d7a75c}
+.player>h3{margin:16px 0 8px;color:#e8c567}
