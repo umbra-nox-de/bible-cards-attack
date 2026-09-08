@@ -33,6 +33,48 @@ const battlefieldLines={
   GA:"🔴 The General Overseer arrives. The meeting is now in session... and it may take fifteen more minutes."
 };
 const entryLine=name=>battlefieldLines[name]||characters[name].name+" entered the battlefield.";
+
+const attackLines={
+  David:{
+    "Sling Shot":"🪨 David reaches for his sling. Somewhere, a giant suddenly feels nervous.",
+    "Five Smooth Stones":"🪨 David checks his pockets. Five smooth stones. Five problems for the enemy."
+  },
+  Jonah:{
+    "Whale Encounter":"🐋 Jonah attacks quickly. He has learned not to stay near large bodies of water.",
+    "Nineveh Sprint":"🏃 Jonah finally runs in the right direction. Nineveh would be proud."
+  },
+  Daniel:{
+    "Lion's Courage":"🦁 Daniel stands firm. The lions have seen this confidence before.",
+    "Den of Lions":"🦁 Daniel brings the full lion-den experience to the battlefield."
+  },
+  Gideon:{
+    "Broken Jar":"🏺 Gideon breaks a jar. Apparently subtlety was never part of the plan.",
+    "Trumpet Ambush":"📯 Gideon's army blows the trumpets. The enemy is suddenly very confused."
+  },
+  Moses:{
+    "Staff Strike":"🌊 Moses raises the staff. History suggests everyone should step back.",
+    "Part the Waters":"🌊 Moses makes an opening where there definitely was not one before."
+  },
+  Michael:{
+    "Heavenly Strike":"⚔️ Michael raises his heavenly sword. The battlefield goes silent.",
+    "Archangel's Judgment":"✨ Michael descends with judgment. Heaven has entered the chat."
+  },
+  Elijah:{
+    "Heavenly Fire":"🔥 Elijah looks upward... this is about to get warm.",
+    "Mount Carmel":"🔥 Elijah calls for Mount Carmel energy. Someone should probably bring water."
+  },
+  Esther:{
+    "Royal Petition":"👑 Esther makes her request with royal confidence.",
+    "Queen's Decree":"📜 Esther issues a decree. The battlefield has been formally notified."
+  },
+  "General Overseer":{
+    "Fifteen More Minutes":"🔴 The General Overseer says, 'Just fifteen more minutes.' Nobody believes him.",
+    "Amen Brother Jackson":"🔴 The General Overseer hears a point he likes. 'Amen, Brother Jackson!'",
+    "Smile Brother Jackson":"🔴 The General Overseer smiles. Brother Jackson has been officially encouraged."
+  }
+};
+const attackLine=(name,attack)=>attackLines[name]?.[attack];
+
 const supports=[
  {id:"loaves",name:"Loaves & Fishes",icon:"🍞",text:"Heal your Active Character for 20 HP."},
  {id:"armor",name:"Armor of God",icon:"🛡️",text:"Prevent 15 damage from the next enemy attack."},
@@ -143,6 +185,8 @@ export default function App(){
      if(mode==="ultimate"&&gaUltimateUsed){addLog("Smile Brother Jackson can only be used once per battle.");return;}
    }
    if(prayers<data.cost){addLog("Not enough Prayers!");return;}
+   const flavor=attackLine(c.name,data.name);
+   if(flavor)addLog(flavor);
    const next=Math.max(0,enemyHp-data.damage);setPrayers(p=>p-data.cost);setEnemyHp(next);
    if(data.heal)setHp(h=>({...h,[active]:Math.min(c.hp,h[active]+data.heal)}));
    if(data.shield)setShield(s=>s+data.shield);
