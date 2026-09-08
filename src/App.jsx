@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 
 const characters = {
-  David:{name:"David",title:"The Giant Slayer",hp:120,icon:"🪨",attack:"Sling Shot",cost:2,damage:40},
-  Jonah:{name:"Jonah",title:"The Reluctant Prophet",hp:110,icon:"🐋",attack:"Whale Encounter",cost:2,damage:35},
-  Daniel:{name:"Daniel",title:"The Lion's Guest",hp:120,icon:"🦁",attack:"Lion's Courage",cost:2,damage:35},
-  Gideon:{name:"Gideon",title:"The Unexpected Army",hp:110,icon:"🏺",attack:"Broken Jar",cost:2,damage:35},
-  Moses:{name:"Moses",title:"The Sea Splitter",hp:140,icon:"🌊",attack:"Staff Strike",cost:2,damage:30},
-  Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",attack:"Heavenly Strike",cost:2,damage:40},
-  Elijah:{name:"Elijah",title:"Fire From Heaven",hp:125,icon:"🔥",attack:"Heavenly Fire",cost:3,damage:35},
-  Esther:{name:"Esther",title:"For Such a Time",hp:115,icon:"👑",attack:"Royal Petition",cost:2,damage:35},
+  David:{name:"David",title:"The Giant Slayer",hp:120,icon:"🪨",attack:"Sling Shot",cost:2,damage:40,secondAttack:"Five Smooth Stones",secondCost:4,secondDamage:60},
+  Jonah:{name:"Jonah",title:"The Reluctant Prophet",hp:110,icon:"🐋",attack:"Whale Encounter",cost:2,damage:35,secondAttack:"Nineveh Sprint",secondCost:3,secondDamage:50},
+  Daniel:{name:"Daniel",title:"The Lion's Guest",hp:120,icon:"🦁",attack:"Lion's Courage",cost:2,damage:35,secondAttack:"Den of Lions",secondCost:4,secondDamage:58},
+  Gideon:{name:"Gideon",title:"The Unexpected Army",hp:110,icon:"🏺",attack:"Broken Jar",cost:2,damage:35,secondAttack:"Trumpet Ambush",secondCost:3,secondDamage:52},
+  Moses:{name:"Moses",title:"The Sea Splitter",hp:140,icon:"🌊",attack:"Staff Strike",cost:2,damage:30,secondAttack:"Part the Waters",secondCost:4,secondDamage:55},
+  Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",attack:"Heavenly Strike",cost:2,damage:40,secondAttack:"Archangel's Judgment",secondCost:4,secondDamage:62},
+  Elijah:{name:"Elijah",title:"Fire From Heaven",hp:125,icon:"🔥",attack:"Heavenly Fire",cost:3,damage:35,secondAttack:"Mount Carmel",secondCost:4,secondDamage:60},
+  Esther:{name:"Esther",title:"For Such a Time",hp:115,icon:"👑",attack:"Royal Petition",cost:2,damage:35,secondAttack:"Queen's Decree",secondCost:3,secondDamage:50},
   GA:{name:"General Overseer",title:"MYTHICAL • Will Be Subject To Change",hp:150,icon:"🔴",attack:"Fifteen More Minutes",cost:1,damage:25},
   Pharaoh:{name:"Training Pharaoh",title:"Practice Opponent",hp:150,icon:"👑",attack:"Chariot Charge",cost:2,damage:30}
 };
@@ -136,7 +136,7 @@ export default function App(){
  const attack=(mode="basic")=>{
    if(turn!=="player"||!active||winner)return;
    const c=characters[active];
-   let data={name:c.attack,cost:c.cost,damage:c.damage};
+   let data=mode==="second"?{name:c.secondAttack,cost:c.secondCost,damage:c.secondDamage}:{name:c.attack,cost:c.cost,damage:c.damage};
    if(active==="GA"){
      const ga={first:{name:"Fifteen More Minutes",cost:1,damage:25},second:{name:"Amen Brother Jackson",cost:3,damage:45,heal:10},ultimate:{name:"Smile Brother Jackson",cost:5,damage:70,shield:20}};
      data=ga[mode]||ga.first;
@@ -160,10 +160,11 @@ export default function App(){
   <section className="opponent"><h2>👑 TRAINING PHARAOH</h2><Card card={characters.Pharaoh} hp={enemyHp} active/></section>
   <section className="vs">⚔️ VS ⚔️</section>
   <section className="player">
-   <h3>YOUR BENCH</h3><div className="bench">{[0,1,2].map(i=>bench[i]?<Card key={bench[i]} card={characters[bench[i]]} hp={hp[bench[i]]} onClick={()=>switchActive(bench[i])}/>:<div className="empty-slot" key={i}>EMPTY</div>)}</div>
+   <h3>⭐ YOUR ACTIVE CHARACTER</h3>
    {active?<Card card={characters[active]} hp={hp[active]} active/>:<div className="empty-active">Choose an Active Character from your hand.</div>}
+   <h3>YOUR BENCH</h3><div className="bench">{[0,1,2].map(i=>bench[i]?<div className="bench-slot" key={bench[i]}><Card card={characters[bench[i]]} hp={hp[bench[i]]} onClick={()=>switchActive(bench[i])}/><button className="sell-card" onClick={()=>sellBench(bench[i])}>💰 Sell / Remove</button></div>:<div className="empty-slot" key={i}>EMPTY</div>)}</div>
    <div className="controls"><div className="resource">🙏 PRAYERS: <b>{prayers}/10</b> • 🎴 CHARACTERS: {deck.length} • ✨ SUPPORTS: {supportDeck.length} • 🙏 PRAYER DECK: {prayerDeck.length} • 🗑️ SUPPORT DISCARD: {discard.length} • 📿 PRAYER DISCARD: {prayerDiscard.length}</div>
-    {active&&active!=="GA"&&<button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button>}{active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
+    {active&&active!=="GA"&&<><button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button><button className="attack second-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔥 {characters[active].secondAttack}<small>🙏 {characters[active].secondCost} • 💥 {characters[active].secondDamage}</small></button></>}{active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
     <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button>
     <button className="end-turn" onClick={endTurn} disabled={turn!=="player"||!!winner}>⏭️ End Turn</button>
     <button onClick={draw} disabled={turn==="enemy"||!!winner}>🎴 Draw Character</button><button onClick={drawSupport} disabled={turn==="enemy"||!!winner}>✨ Draw Support</button>
