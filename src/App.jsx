@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const characters = {
   David:{name:"David",title:"The Giant Slayer",hp:120,icon:"🪨",rarity:"Common",passive:"Faithful Aim — 25% critical-hit chance.",attack:"Sling Shot",cost:2,damage:40,secondAttack:"Five Smooth Stones",secondCost:4,secondDamage:60},
@@ -107,6 +107,20 @@ function Card({card,hp,onClick,active,selected}){
 
 export default function App(){
  const [page,setPage]=useState("home");
+ const [device,setDevice]=useState("desktop");
+ useEffect(()=>{
+   const detect=()=>{
+     const w=window.innerWidth;
+     const ua=navigator.userAgent||"";
+     const next=w<=600?"phone":w<=1024?"tablet":"desktop";
+     setDevice(next);
+     document.documentElement.dataset.device=next;
+     document.documentElement.dataset.touch=("ontouchstart" in window||navigator.maxTouchPoints>0)?"true":"false";
+     document.documentElement.style.setProperty("--app-vh",(window.innerHeight*.01)+"px");
+   };
+   detect();window.addEventListener("resize",detect);window.addEventListener("orientationchange",detect);
+   return ()=>{window.removeEventListener("resize",detect);window.removeEventListener("orientationchange",detect);};
+ },[]);
  const [selectedCardDetail,setSelectedCardDetail]=useState(null);
  const [unlockedGA,setUnlockedGA]=useState(()=>localStorage.getItem("bca-GA")==="true");
  const [unlockedWO,setUnlockedWO]=useState(()=>localStorage.getItem("bca-WO")==="true");
@@ -296,11 +310,41 @@ export default function App(){
    </div>;
  })();
  const collection=<main className="page collection-page"><h1>🎴 Card Collection</h1><p className="collection-subtitle">Your unlocked characters. Click any card to inspect its HP, abilities, and attacks.</p><p>⚪ Common • 🟢 Uncommon • 🔵 Rare • 🟣 Epic • 🟡 Legendary • 🔴 Mythic</p><div className="collection-grid">{availableCards.map(n=><Card key={n} card={characters[n]} hp={characters[n].hp} onClick={()=>setSelectedCardDetail(n)}/>)}{!unlockedGA&&<div className="locked">🔒<br/>MYTHICAL<br/><small>GA — Locked by Code</small></div>}{!unlockedWO&&<div className="locked blue">🔒<br/>MYTHICAL<br/><small>WO — Locked by Code</small></div>}</div>{cardDetail}</main>;
- const addDeckCard=id=>{if(builtDeck.length>=20)return;if(!id.startsWith("S:")&&builtDeck.filter(x=>!x.startsWith("S:")).length>=12)return;saveDeck([...builtDeck,id]);};
- const removeDeckCard=i=>saveDeck(builtDeck.filter((_,x)=>x!==i));
- const characterCount=builtDeck.filter(x=>!x.startsWith("S:")).length;
- const supportCount=builtDeck.filter(x=>x.startsWith("S:")).length;
- const deckBuilder=<main className="page"><h1>🧰 Build Deck</h1><div className="deck-counter"><div><strong>{builtDeck.length}</strong><span>/20</span><small>Total Cards</small></div><div><strong>{characterCount}</strong><span>/12</span><small>Characters</small></div><div><strong>{supportCount}</strong><small>Supports</small></div></div><p>Maximum 20 cards • Maximum 12 Character cards.</p><div className="deck-columns"><div><h2>Characters</h2><div className="picker">{availableCards.map(n=><button key={n} onClick={()=>addDeckCard(n)}>{characters[n].icon} {characters[n].name}</button>)}</div><h2>Supports</h2><div className="picker">{supports.map(s=><button key={s.id} onClick={()=>addDeckCard("S:"+s.id)}>{s.icon} {s.name}</button>)}</div></div><div className="built-deck"><h2>Your Deck</h2>{builtDeck.map((x,i)=><button key={i} onClick={()=>removeDeckCard(i)}>✖ {x.startsWith("S:")?supports.find(s=>"S:"+s.id===x)?.name:characters[x]?.name}</button>)}</div></div></main>;
+ const characterDeck=builtDeck.filter(x=>!x.startsWith("S:"));
+ const supportDeckCards=builtDeck.filter(x=>x.startsWith("S:"));
+ const addDeckCard=id=>{
+   if(id.startsWith("S:")){
+     if(builtDeck.length>=20||supportDeckCards.length>=8)return;
+   }else if(characterDeck.length>=12)return;
+   saveDeck([...builtDeck,id]);
+ };
+ const removeDeckCardAt=index=>saveDeck(builtDeck.filter((_,x)=>x!==index));
+ const removeCharacterSlot=slot=>{
+   const indexes=builtDeck.map((x,i)=>!x.startsWith("S:")?i:null).filter(i=>i!==null);
+   if(indexes[slot]!==undefined)removeDeckCardAt(indexes[slot]);
+ };
+ const removeSupportSlot=slot=>{
+   const indexes=builtDeck.map((x,i)=>x.startsWith("S:")?i:null).filter(i=>i!==null);
+   if(indexes[slot]!==undefined)removeDeckCardAt(indexes[slot]);
+ };
+ const characterCount=characterDeck.length;
+ const supportCount=supportDeckCards.length;
+ const deckBuilder=<main className={"page deck-builder device-"+device}>
+   <h1>🧰 Build Deck</h1>
+   <p className="deck-builder-intro">Build your battle deck by filling your Character and Support slots. Tap a filled slot to remove it.</p>
+   <div className="deck-counter"><div><strong>{builtDeck.length}</strong><span>/20</span><small>Total Cards</small></div><div><strong>{characterCount}</strong><span>/12</span><small>Characters</small></div><div><strong>{supportCount}</strong><span>/8</span><small>Supports</small></div></div>
+   <section className="deck-section">
+    <div className="deck-section-heading"><div><h2>⚔️ Character Deck</h2><p>12 possible character slots</p></div><strong>{characterCount}/12</strong></div>
+    <div className="character-slots">{Array.from({length:12},(_,i)=>{const id=characterDeck[i];const card=id&&characters[id];return <button className={"deck-slot "+(card?"filled":"empty")} key={i} onClick={()=>card&&removeCharacterSlot(i)} title={card?"Tap to remove "+card.name:"Empty character slot"}>{card?<><span className="slot-number">{i+1}</span><span className="slot-icon">{card.icon}</span><span className="slot-name">{card.name}</span><span className="slot-remove">✕</span></>:<><span className="slot-number">{i+1}</span><span className="empty-plus">＋</span><small>Empty</small></>}</button>;})}</div>
+    <div className="available-panel"><h3>Choose a Character</h3><p>Click a character below to add it to the next available slot.</p><div className="character-choices">{availableCards.map(n=>{const card=characters[n];const disabled=characterCount>=12;return <button className={"choice-card "+String(card.rarity||"").toLowerCase()} key={n} disabled={disabled} onClick={()=>addDeckCard(n)}><span>{card.icon}</span><strong>{card.name}</strong><small>{card.hp} HP • {card.rarity}</small><em>＋ Add</em></button>;})}</div></div>
+   </section>
+   <section className="deck-section support-section">
+    <div className="deck-section-heading"><div><h2>🛡️ Support Deck</h2><p>Up to 8 support cards</p></div><strong>{supportCount}/8</strong></div>
+    <div className="support-slots">{Array.from({length:8},(_,i)=>{const id=supportDeckCards[i];const s=id&&supports.find(x=>"S:"+x.id===id);return <button className={"support-slot "+(s?"filled":"empty")} key={i} onClick={()=>s&&removeSupportSlot(i)}>{s?<><span>{s.icon}</span><strong>{s.name}</strong><em>✕</em></>:<><span>＋</span><small>Empty Support</small></>}</button>;})}</div>
+    <div className="available-panel"><h3>Choose Support Cards</h3><div className="support-choices">{supports.map(s=><button key={s.id} disabled={supportCount>=8||builtDeck.length>=20} onClick={()=>addDeckCard("S:"+s.id)}>{s.icon} <strong>{s.name}</strong><small>＋ Add</small></button>)}</div></div>
+   </section>
+   <p className="deck-tip">💡 The deck automatically saves on this device.</p>
+ </main>;
  const submitCode=()=>{const code=unlockCode.trim().toUpperCase();if(code==="121GA"){localStorage.setItem("bca-GA","true");setUnlockedGA(true);setUnlockMessage("🔴 GENERAL OVERSEER UNLOCKED!");}else if(code==="1980"){localStorage.setItem("bca-WO","true");setUnlockedWO(true);setUnlockMessage("🔵 WEST OVERSEER UNLOCKED!");}else setUnlockMessage("❌ That code did not unlock a card.");setUnlockCode("");};
  const unlock=<main className="page"><h1>🔐 Unlock Cards</h1><p>Each Mythical card has its own code. Unlocks are saved on this device.</p><div className="unlock-box"><input value={unlockCode} onChange={e=>setUnlockCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitCode()} placeholder="Enter unlock code"/><button onClick={submitCode}>UNLOCK</button><p>{unlockMessage}</p></div><div className="mythics"><div className="mythic red">🔴 GENERAL OVERSEER<br/><small>GA • 150 HP • {unlockedGA?"UNLOCKED":"Locked"}</small></div><div className="mythic blue">🔵 WEST OVERSEER<br/><small>WO • 150 HP • {unlockedWO?"UNLOCKED":"Locked"}</small></div></div></main>;
  if(page==="practice")return practice;
