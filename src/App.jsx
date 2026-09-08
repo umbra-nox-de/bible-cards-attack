@@ -95,8 +95,11 @@ const supports=[
  {id:"commandments",name:"Ten Commandments",icon:"📜",text:"Weaken the enemy for 2 turns."}
 ];
 
+const artMap={David:"david",Jonah:"jonah",Daniel:"daniel",Gideon:"gideon",Moses:"moses",Michael:"michael",Elijah:"elijah",Esther:"esther",Pharaoh:"pharaoh",Goliath:"goliath",Serpent:"serpent",Centurion:"centurion",GA:"overseer-red",WO:"overseer-blue"};
 function Card({card,hp,onClick,active,selected}){
+ const art=artMap[card.id]||artMap[card.name]||"default";
  return <button className={"character-card "+String(card.rarity||"").toLowerCase()+" "+(active?"active-card ":"")+(selected?"selected ":"")} onClick={onClick}>
+  <div className={"card-art art-"+art}><div className="art-icon">{card.icon}</div><div className="art-vignette"></div></div>
   <div className="card-top"><span>{card.icon}</span><strong>{card.name}</strong><em>{card.rarity}</em></div><small>{card.title}</small>{card.passive&&<div className="passive">✨ {card.passive}</div>}
   <div className="hp">❤️ {Math.max(0,hp??card.hp)} / {card.hp}</div>
  </button>;
