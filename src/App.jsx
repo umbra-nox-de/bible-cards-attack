@@ -207,7 +207,7 @@ export default function App(){
    if(turn!=="player"||!active||winner)return;
    addLog("🙏 You end your turn and save your remaining Prayers.");
    if(active==="GA"){setShield(s=>s+5);addLog("🔴 Presiding Presence granted 5 Protection.");}
-   if(playerStatus.burn>0||playerStatus.plague>0){let dot=(playerStatus.burn>0?8:0)+(playerStatus.plague>0?6:0);setHp(h=>({...h,[active]:Math.max(0,h[active]-dot)}));setPlayerStatus(p=>({burn:Math.max(0,p.burn-1),plague:Math.max(0,p.plague-1),stun:0}));addLog("🔥☠️ Status effects dealt "+dot+" damage.");}
+   if(playerStatus.burn>0||playerStatus.plague>0){let dot=(playerStatus.burn>0?8:0)+(playerStatus.plague>0?6:0);setHp(h=>({...h,[active]:Math.max(0,h[active]-dot)}));setPlayerStatus(p=>({burn:Math.max(0,p.burn-1),plague:Math.max(0,p.plague-1),stun:0}));addLog("🔥☠️ Status effects dealt "+dot+" damage.");}else if(playerStatus.stun>0){setPlayerStatus(p=>({...p,stun:0}));addLog("⚡ Stun wore off.");}
    enemyTurn();
  };
  const attack=(mode="basic")=>{
@@ -218,7 +218,7 @@ export default function App(){
    if(active==="WO"){const wo={basic:{name:"One More Thing",cost:2,damage:30},second:{name:"Long Winded",cost:4,damage:55},ultimate:{name:"Last Conclusion",cost:5,damage:72}};data=wo[mode]||wo.basic;if(mode!=="ultimate")data={...data,cost:Math.max(1,data.cost-1)};}
    if(prayers<data.cost){addLog("Not enough Prayers!");return;}
    let damage=data.damage;if(active==="Gideon"&&!gideonUsed){damage+=10;setGideonUsed(true);addLog("🏺 Small Army added 10 surprise damage!");}
-   const critical=Math.random()<(active==="David"?.25:.15);if(critical){damage=Math.round(damage*1.5);addLog("💥 CRITICAL HIT! Extra damage!");}
+   const critical=Math.random()<(active==="David"?0.25:0.15);if(critical){damage=Math.round(damage*1.5);addLog("💥 CRITICAL HIT! Extra damage!");}
    const flavor=attackLine(card.name,data.name);if(flavor)addLog(flavor);
    const next=Math.max(0,enemyHp-damage);setPrayers(p=>p-data.cost);setEnemyHp(next);
    if(data.heal)setHp(h=>({...h,[active]:Math.min(card.hp,h[active]+data.heal)}));if(data.shield)setShield(s=>s+data.shield);
