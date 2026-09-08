@@ -259,22 +259,74 @@ export default function App(){
  };
  const heal=()=>{if(turn==="player"&&active&&!winner){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");}};
  const practice=<main className="battle">
-  <header className="battle-header"><button onClick={()=>setPage("home")}>← Home</button><h1>🃏 BIBLE CARDS ATTACK</h1><span>{currentOpponent.ai} AI</span></header>
-  <section className="opponent battlefield-side enemy-side"><h2>👿 ENEMY</h2><div className="battle-card-wrap"><Card card={currentOpponent} hp={enemyHp} active/><div className="enemy-ai">🤖 {currentOpponent.ai} AI</div>{damageEffect?.target==="enemy"&&<div className={"damage-pop "+(damageEffect.critical?"critical-pop":"")}>{damageEffect.critical?"💥 CRIT! ":"-"}{damageEffect.amount}</div>}{enemyDot&&<div className="status-badge enemy-status">{enemyDot.name==="Burn"?"🔥 BURN":"☠️ PLAGUE"} • {enemyDot.turns} turn(s)</div>}</div><p>{enemyWeaken>0?"📜 WEAKENED • "+enemyWeaken+" turn(s)":""}</p></section>
-  <section className="vs">⚔️ VS ⚔️</section>
-  <section className="player">
-   <h3>⭐ YOUR ACTIVE CHARACTER</h3>
-   {active?<div className="battle-card-wrap player-card-wrap"><Card card={characters[active]} hp={hp[active]} active selected={entryEffect===active}/>{damageEffect?.target==="player"&&<div className="damage-pop player-damage">-{damageEffect.amount}</div>}{healEffect&&<div className="heal-pop">+{healEffect}</div>}{entryEffect===active&&<div className="entry-banner">✨ {characters[active].name.toUpperCase()} ENTERS THE BATTLEFIELD ✨</div>}{shield>0&&<div className="status-badge shield-badge">🛡️ PROTECTION {shield}</div>}<div className="status-row">{playerStatus.burn>0&&"🔥 BURN "+playerStatus.burn+" "} {playerStatus.plague>0&&"☠️ PLAGUE "+playerStatus.plague+" "} {playerStatus.stun>0&&"⚡ STUNNED"}</div></div>:<div className="empty-active">Choose an Active Character from your hand.</div>}
-   <h3>YOUR BENCH</h3><div className="bench">{[0,1,2].map(i=>bench[i]?<div className="bench-slot" key={bench[i]}><Card card={characters[bench[i]]} hp={hp[bench[i]]} onClick={()=>switchActive(bench[i])}/><button className="sell-card" onClick={()=>sellBench(bench[i])}>💰 Sell / Remove</button></div>:<div className="empty-slot" key={i}>EMPTY</div>)}</div>
-   <div className="controls"><div className="resource">🙏 PRAYERS: <b>{prayers}/10</b> • 🎴 CHARACTERS: {deck.length} • ✨ SUPPORTS: {supportDeck.length} • 🙏 PRAYER DECK: {prayerDeck.length} • 🗑️ SUPPORT DISCARD: {discard.length} • 📿 PRAYER DISCARD: {prayerDiscard.length}</div>
-    {active&&active!=="GA"&&active!=="WO"&&<><button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button><button className="attack second-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔥 {characters[active].secondAttack}<small>🙏 {characters[active].secondCost} • 💥 {characters[active].secondDamage}</small></button></>}{active==="WO"&&<><button className="attack blue-attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>🔵 One More Thing<small>🙏 1 • 💥 30</small></button><button className="attack blue-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔵 Long Winded<small>🙏 3 • 💥 55</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner}>⭐ Last Conclusion<small>🙏 5 • 💥 72</small></button></>}{active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
-    <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button>
-    <button className="end-turn" onClick={endTurn} disabled={turn!=="player"||!!winner}>⏭️ End Turn</button>
-    <button onClick={draw} disabled={turn==="enemy"||!!winner}>🎴 Draw Character</button><button onClick={drawSupport} disabled={turn==="enemy"||!!winner}>✨ Draw Support</button>
+  <header className="battle-header">
+   <button className="battle-home" onClick={()=>setPage("home")}>← Home</button>
+   <h1>🃏 BIBLE CARDS ATTACK</h1>
+   <div className={"turn-indicator "+turn}><span className="turn-dot"></span>{winner?winner+" Wins":turn==="player"?"Your Turn":"Enemy Turn"}</div>
+  </header>
+
+  <div className="battle-layout">
+   <section className="battlefield">
+    <section className="opponent battlefield-side enemy-side">
+     <div className="side-label"><span>👿</span><div><b>ENEMY</b><small>{currentOpponent.ai} AI</small></div></div>
+     <div className="battle-card-wrap">
+      <Card card={currentOpponent} hp={enemyHp} active/>
+      <div className="enemy-ai">🤖 {currentOpponent.ai} AI</div>
+      {damageEffect?.target==="enemy"&&<div className={"damage-pop "+(damageEffect.critical?"critical-pop":"")}>{damageEffect.critical?"💥 CRIT! ":"-"}{damageEffect.amount}</div>}
+      {enemyDot&&<div className="status-badge enemy-status">{enemyDot.name==="Burn"?"🔥 BURN":"☠️ PLAGUE"} • {enemyDot.turns} turn(s)</div>}
+     </div>
+     {enemyWeaken>0&&<p className="enemy-effect">📜 WEAKENED • {enemyWeaken} turn(s)</p>}
+    </section>
+
+    <div className="vs"><span>⚔️</span><b>VS</b><span>⚔️</span></div>
+
+    <section className="player battlefield-side">
+     <div className="side-label player-label"><span>⭐</span><div><b>YOUR ACTIVE CHARACTER</b><small>{active?"Ready for battle":"Choose from your hand"}</small></div></div>
+     {active?<div className="battle-card-wrap player-card-wrap">
+      <Card card={characters[active]} hp={hp[active]} active selected={entryEffect===active}/>
+      {damageEffect?.target==="player"&&<div className="damage-pop player-damage">-{damageEffect.amount}</div>}
+      {healEffect&&<div className="heal-pop">+{healEffect}</div>}
+      {entryEffect===active&&<div className="entry-banner">✨ {characters[active].name.toUpperCase()} ENTERS THE BATTLEFIELD ✨</div>}
+      {shield>0&&<div className="status-badge shield-badge">🛡️ PROTECTION {shield}</div>}
+      <div className="status-row">{playerStatus.burn>0&&"🔥 BURN "+playerStatus.burn+" "}{playerStatus.plague>0&&"☠️ PLAGUE "+playerStatus.plague+" "}{playerStatus.stun>0&&"⚡ STUNNED"}</div>
+     </div>:<div className="empty-active">Choose an Active Character from your hand.</div>}
+     <div className="bench-area">
+      <div className="bench-title"><b>YOUR BENCH</b><small>Click a character to switch</small></div>
+      <div className="bench">{[0,1,2].map(i=>bench[i]?<div className="bench-slot" key={bench[i]}><Card card={characters[bench[i]]} hp={hp[bench[i]]} onClick={()=>switchActive(bench[i])}/><button className="sell-card" onClick={()=>sellBench(bench[i])}>💰 Sell</button></div>:<div className="empty-slot" key={i}><span>＋</span>EMPTY</div>)}</div>
+     </div>
+    </section>
+   </section>
+
+   <aside className="log"><div className="log-heading"><h3>📜 Battle Log</h3><span>Live</span></div>{log.length?log.map((x,i)=><p key={i}>{x}</p>):<p className="empty-log">The battle is about to begin...</p>}</aside>
+  </div>
+
+  <section className="battle-dashboard">
+   <div className="resource">
+    <div className="resource-main">🙏 <span>PRAYERS</span> <b>{prayers}/10</b></div>
+    <div className="resource-details"><span>🎴 {deck.length} Characters</span><span>✨ {supportDeck.length} Supports</span><span>🙏 {prayerDeck.length} Prayer Deck</span><span>🗑️ {discard.length} Support Discard</span></div>
    </div>
-   <div className="hand"><h3>YOUR CHARACTER HAND</h3>{hand.length?hand.map(n=><Card key={n} card={characters[n]} hp={hp[n]} onClick={()=>playCard(n)}/>):<p>No Character cards in hand.</p>}</div><div className="support-hand"><h3>✨ YOUR SUPPORT HAND</h3>{supportHand.length?supportHand.map(s=><button className="support-card" key={s.id} onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button>):<p>No Support cards in hand.</p>}</div>
+   <div className="controls">
+    <div className="action-group attack-group">
+     <small className="action-label">ATTACKS</small>
+     {active&&active!=="GA"&&active!=="WO"&&<><button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button><button className="attack second-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔥 {characters[active].secondAttack}<small>🙏 {characters[active].secondCost} • 💥 {characters[active].secondDamage}</small></button></>}
+     {active==="WO"&&<><button className="attack blue-attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>🔵 One More Thing<small>🙏 1 • 💥 30</small></button><button className="attack blue-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔵 Long Winded<small>🙏 3 • 💥 55</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner}>⭐ Last Conclusion<small>🙏 5 • 💥 72</small></button></>}
+     {active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
+    </div>
+    <div className="action-group utility-group">
+     <small className="action-label">ACTIONS</small>
+     <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button>
+     <button className="end-turn" onClick={endTurn} disabled={turn!=="player"||!!winner}>⏭️ End Turn</button>
+     <button onClick={draw} disabled={turn==="enemy"||!!winner}>🎴 Draw Character</button>
+     <button onClick={drawSupport} disabled={turn==="enemy"||!!winner}>✨ Draw Support</button>
+    </div>
+   </div>
   </section>
-  <aside className="log"><h3>📜 Battle Log</h3>{log.map((x,i)=><p key={i}>{x}</p>)}</aside>
+
+  <section className="battle-hands">
+   <div className="hand"><div className="hand-heading"><h3>YOUR CHARACTER HAND</h3><span>{hand.length} cards</span></div>{hand.length?<div className="hand-cards">{hand.map(n=><Card key={n} card={characters[n]} hp={hp[n]} onClick={()=>playCard(n)}/>)}</div>:<p>No Character cards in hand.</p>}</div>
+   <div className="support-hand"><div className="hand-heading"><h3>✨ YOUR SUPPORT HAND</h3><span>{supportHand.length} cards</span></div>{supportHand.length?<div className="support-cards">{supportHand.map(s=><button className="support-card" key={s.id} onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button>)}</div>:<p>No Support cards in hand.</p>}</div>
+  </section>
+
   {winner&&<div className="overlay"><div className="result"><h2>{winner==="Player"?"🎉 VICTORY!":"💀 DEFEAT"}</h2><p>{winner==="Player"?"You defeated Training Pharaoh!":"Training Pharaoh wins."}</p><button onClick={start}>Practice Again</button></div></div>}
  </main>;
  const availableCards=[...starter,...(unlockedGA?["GA"]:[]),...(unlockedWO?["WO"]:[])];
