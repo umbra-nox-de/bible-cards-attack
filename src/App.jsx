@@ -1,18 +1,20 @@
 import React, { useState } from "react";
 
 const characters = {
-  David:{name:"David",title:"The Giant Slayer",hp:120,icon:"🪨",attack:"Sling Shot",cost:2,damage:40,secondAttack:"Five Smooth Stones",secondCost:4,secondDamage:60},
-  Jonah:{name:"Jonah",title:"The Reluctant Prophet",hp:110,icon:"🐋",attack:"Whale Encounter",cost:2,damage:35,secondAttack:"Nineveh Sprint",secondCost:3,secondDamage:50},
-  Daniel:{name:"Daniel",title:"The Lion's Guest",hp:120,icon:"🦁",attack:"Lion's Courage",cost:2,damage:35,secondAttack:"Den of Lions",secondCost:4,secondDamage:58},
-  Gideon:{name:"Gideon",title:"The Unexpected Army",hp:110,icon:"🏺",attack:"Broken Jar",cost:2,damage:35,secondAttack:"Trumpet Ambush",secondCost:3,secondDamage:52},
-  Moses:{name:"Moses",title:"The Sea Splitter",hp:140,icon:"🌊",attack:"Staff Strike",cost:2,damage:30,secondAttack:"Part the Waters",secondCost:4,secondDamage:55},
-  Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",attack:"Heavenly Strike",cost:2,damage:40,secondAttack:"Archangel's Judgment",secondCost:4,secondDamage:62},
-  Elijah:{name:"Elijah",title:"Fire From Heaven",hp:125,icon:"🔥",attack:"Heavenly Fire",cost:3,damage:35,secondAttack:"Mount Carmel",secondCost:4,secondDamage:60},
-  Esther:{name:"Esther",title:"For Such a Time",hp:115,icon:"👑",attack:"Royal Petition",cost:2,damage:35,secondAttack:"Queen's Decree",secondCost:3,secondDamage:50},
-  GA:{name:"General Overseer",title:"MYTHICAL • Will Be Subject To Change",hp:150,icon:"🔴",attack:"Fifteen More Minutes",cost:1,damage:25},
+  David:{name:"David",title:"The Giant Slayer",hp:120,icon:"🪨",rarity:"Common",passive:"Faithful Aim — 25% critical-hit chance.",attack:"Sling Shot",cost:2,damage:40,secondAttack:"Five Smooth Stones",secondCost:4,secondDamage:60},
+  Jonah:{name:"Jonah",title:"The Reluctant Prophet",hp:110,icon:"🐋",rarity:"Common",passive:"Second Chance — survives one defeat with 15 HP.",attack:"Whale Encounter",cost:2,damage:35,secondAttack:"Nineveh Sprint",secondCost:3,secondDamage:50},
+  Daniel:{name:"Daniel",title:"The Lion's Guest",hp:120,icon:"🦁",rarity:"Rare",passive:"Lion's Courage — takes less damage below 50% HP.",attack:"Lion's Courage",cost:2,damage:35,secondAttack:"Den of Lions",secondCost:4,secondDamage:58},
+  Gideon:{name:"Gideon",title:"The Unexpected Army",hp:110,icon:"🏺",rarity:"Uncommon",passive:"Small Army — first attack deals +10 damage.",attack:"Broken Jar",cost:2,damage:35,secondAttack:"Trumpet Ambush",secondCost:3,secondDamage:52},
+  Moses:{name:"Moses",title:"The Sea Splitter",hp:140,icon:"🌊",rarity:"Legendary",passive:"Plague Bringer — attacks inflict Plague.",attack:"Staff Strike",cost:2,damage:30,secondAttack:"Part the Waters",secondCost:4,secondDamage:55},
+  Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",rarity:"Epic",passive:"Guardian's Wing — gains Protection on entry.",attack:"Heavenly Strike",cost:2,damage:40,secondAttack:"Archangel's Judgment",secondCost:4,secondDamage:62},
+  Elijah:{name:"Elijah",title:"Fire From Heaven",hp:125,icon:"🔥",rarity:"Epic",passive:"Fire From Heaven — attacks inflict Burn.",attack:"Heavenly Fire",cost:3,damage:35,secondAttack:"Mount Carmel",secondCost:4,secondDamage:60},
+  Esther:{name:"Esther",title:"For Such a Time",hp:115,icon:"👑",rarity:"Rare",passive:"Royal Favor — first Support grants +1 Prayer.",attack:"Royal Petition",cost:2,damage:35,secondAttack:"Queen's Decree",secondCost:3,secondDamage:50},
+  GA:{name:"General Overseer",title:"MYTHICAL • Will Be Subject To Change",hp:150,icon:"🔴",rarity:"Mythic",passive:"Presiding Presence — gains Protection each turn.",attack:"Fifteen More Minutes",cost:1,damage:25},
+  WO:{name:"West Overseer",title:"MYTHICAL • Will Be Subject To Change",hp:150,icon:"🔵",rarity:"Mythic",passive:"Regional Momentum — first attack costs 1 less.",attack:"One More Thing",cost:2,damage:30,secondAttack:"Long Winded",secondCost:4,secondDamage:55},
   Pharaoh:{name:"Training Pharaoh",title:"Practice Opponent",hp:150,icon:"👑",attack:"Chariot Charge",cost:2,damage:30}
 };
 const starter=["David","Jonah","Daniel","Gideon","Moses","Michael","Elijah","Esther"];
+const opponents={Pharaoh:{name:"Training Pharaoh",hp:150,icon:"👑",attack:"Chariot Charge",damage:30,ai:"Aggressive"},Goliath:{name:"Goliath",hp:190,icon:"🗿",attack:"Giant\'s Swing",damage:42,ai:"Slow Power"},Serpent:{name:"The Serpent",hp:135,icon:"🐍",attack:"Venom Strike",damage:22,ai:"Poison"},Centurion:{name:"Roman Centurion",hp:160,icon:"🛡️",attack:"Legion Strike",damage:28,ai:"Balanced"}};
 const prayerCards=[
  {id:"small-prayer",name:"Small Prayer",icon:"🙏",amount:1,text:"Gain 1 Prayer."},
  {id:"united-prayer",name:"United Prayer",icon:"🙏🙏",amount:2,text:"Gain 2 Prayers."},
@@ -81,12 +83,14 @@ const supports=[
  {id:"prayer",name:"Prayer Request",icon:"🙏",text:"Gain 2 Prayers."},
  {id:"trumpets",name:"Trumpets of Jericho",icon:"📯",text:"Deal 15 damage to Training Pharaoh."},
  {id:"temple",name:"Temple of Solomon",icon:"🏛️",text:"Gain 3 Prayers one time, then discard."},
- {id:"manna",name:"Manna From Heaven",icon:"🌤️",text:"Heal 10 HP and gain 1 Prayer."}
+ {id:"manna",name:"Manna From Heaven",icon:"🌤️",text:"Heal 10 HP and gain 1 Prayer."},
+ {id:"dove",name:"Dove of Peace",icon:"🕊️",text:"Remove Burn, Plague, and Stun."},
+ {id:"commandments",name:"Ten Commandments",icon:"📜",text:"Weaken the enemy for 2 turns."}
 ];
 
 function Card({card,hp,onClick,active,selected}){
- return <button className={"character-card "+(active?"active-card ":"")+(selected?"selected ":"")} onClick={onClick}>
-  <div className="card-top"><span>{card.icon}</span><strong>{card.name}</strong></div><small>{card.title}</small>
+ return <button className={"character-card "+String(card.rarity||"").toLowerCase()+" "+(active?"active-card ":"")+(selected?"selected ":"")} onClick={onClick}>
+  <div className="card-top"><span>{card.icon}</span><strong>{card.name}</strong><em>{card.rarity}</em></div><small>{card.title}</small>{card.passive&&<div className="passive">✨ {card.passive}</div>}
   <div className="hp">❤️ {Math.max(0,hp??card.hp)} / {card.hp}</div>
  </button>;
 }
@@ -94,6 +98,13 @@ function Card({card,hp,onClick,active,selected}){
 export default function App(){
  const [page,setPage]=useState("home");
  const [unlockedGA,setUnlockedGA]=useState(()=>localStorage.getItem("bca-GA")==="true");
+ const [unlockedWO,setUnlockedWO]=useState(()=>localStorage.getItem("bca-WO")==="true");
+ const [selectedOpponent,setSelectedOpponent]=useState("Pharaoh");
+ const [playerStatus,setPlayerStatus]=useState({burn:0,plague:0,stun:0});
+ const [enemyWeaken,setEnemyWeaken]=useState(0);
+ const [jonahUsed,setJonahUsed]=useState(false);
+ const [gideonUsed,setGideonUsed]=useState(false);
+ const [estherSupportUsed,setEstherSupportUsed]=useState(false);
  const [unlockCode,setUnlockCode]=useState("");
  const [unlockMessage,setUnlockMessage]=useState("");
  const [hand,setHand]=useState([]);
