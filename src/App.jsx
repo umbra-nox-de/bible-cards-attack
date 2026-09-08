@@ -144,6 +144,7 @@ export default function App(){
  const [prayerDeck,setPrayerDeck]=useState([]);
  const [prayerDiscard,setPrayerDiscard]=useState([]);
  const [prayerDrawn,setPrayerDrawn]=useState(false);
+ const [characterDraws,setCharacterDraws]=useState(0);
  const [active,setActive]=useState(null);
  const [bench,setBench]=useState([]);
  const [hp,setHp]=useState({});
@@ -165,7 +166,7 @@ export default function App(){
  const start=()=>{
    const allowed=[...starter,...(unlockedGA?["GA"]:[]),...(unlockedWO?["WO"]:[])];
    const configured=builtDeck.filter(x=>!x.startsWith("S:")&&allowed.includes(x));
-   const playable=configured.length?configured:[...starter];
+   const playable=[...new Set(configured.length?configured:[...starter])];
    const order=[...playable].sort(()=>Math.random()-.5);
    const drawn=order.slice(0,3);
    const values=Object.fromEntries(allowed.map(n=>[n,characters[n].hp]));
@@ -173,7 +174,7 @@ export default function App(){
    const supportOrder=(configuredSupports.length?configuredSupports:supports).sort(()=>Math.random()-.5);
    const prayerOrder=[...prayerCards].sort(()=>Math.random()-.5);
    setDeck(order.slice(3));setHand(drawn);setSupportHand(supportOrder.slice(0,2));setSupportDeck(supportOrder.slice(2));setDiscard([]);setShield(0);setEnemyDot(null);setGaUltimateUsed(false);setPrayerDeck(prayerOrder);setPrayerDiscard([]);setPrayerDrawn(false);setActive(null);setBench([]);setHp(values);setPlayerStatus({burn:0,plague:0,stun:0});setEnemyWeaken(0);setJonahUsed(false);setGideonUsed(false);setEstherSupportUsed(false);
-   setEnemyHp(currentOpponent.hp);setPrayers(0);setTurn("setup");setWinner(null);
+   setEnemyHp(currentOpponent.hp);setPrayers(0);setCharacterDraws(0);setTurn("setup");setWinner(null);
    setLog(["Draw 3 Character cards. Choose one for your Active position."]);
    setPage("practice");
  };
@@ -187,7 +188,13 @@ export default function App(){
    setPrayerDrawn(true);
    addLog(next.icon+" "+next.name+" granted "+next.amount+" Prayer"+(next.amount===1?"":"s")+"!");
  };
- const drawSupport=()=>{if(!supportDeck.length){addLog("Your Support deck is empty.");return;}const [next,...rest]=supportDeck;setSupportDeck(rest);setSupportHand(h=>[...h,next]);addLog("You drew Support: "+next.name+".");};
+ const drawSupport=()=>{
+   if(turn!=="player"||winner)return;
+   if(supportHand.length>=3){addLog("✨ Your Support Hand is full (3/3). Use or discard a Support card first.");return;}
+   if(!supportDeck.length){addLog("Your Support deck is empty.");return;}
+   const [next,...rest]=supportDeck;
+   setSupportDeck(rest);setSupportHand(h=>[...h,next]);addLog("You drew Support: "+next.name+".");
+ };
  const playSupport=s=>{if(turn!=="player"||winner||!active)return;
    if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));showHeal(20);addLog("🍞 Loaves & Fishes restored 20 HP.");}
    if(s.id==="armor"){setShield(20);addLog("🛡️ Armor of God granted 20 Protection.");}
@@ -201,11 +208,32 @@ export default function App(){
    setSupportHand(h=>h.filter(x=>x!==s));setDiscard(d=>[...d,s]);
  };
  const draw=()=>{
-   if(!deck.length){addLog("Your practice deck is empty.");return;}
-   const [next,...rest]=deck;setDeck(rest);setHand(h=>[...h,next]);addLog("You drew "+next+".");
+   if(turn!=="player"||winner)return;
+   if(hand.length>=3){addLog("🎴 Your Character Hand is full (3/3). Play or discard a Character first.");return;}
+   if(characterDraws>=2){addLog("🎴 You have already used both Character draws this round (2/2).");return;}
+   const occupied=new Set([active,...bench,...hand].filter(Boolean));
+   const index=deck.findIndex(name=>!occupied.has(name));
+   if(index===-1){addLog("No new unique Characters are available to draw.");return;}
+   const next=deck[index];
+   setDeck(d=>d.filter((_,i)=>i!==index));
+   setHand(h=>[...h,next]);
+   setCharacterDraws(c=>c+1);
+   addLog("🎴 You drew "+characters[next].name+"! Character draws: "+(characterDraws+1)+"/2.");
+ };
+ const discardCharacter=name=>{
+   if(turn==="enemy"||winner)return;
+   setHand(h=>h.filter(x=>x!==name));
+   setDiscard(d=>[...d,{id:"discarded-"+name+"-"+Date.now(),name:characters[name].name,type:"character"}]);
+   addLog("🗑️ "+characters[name].name+" was discarded from your hand.");
+ };
+ const discardSupport=s=>{
+   if(turn==="enemy"||winner)return;
+   setSupportHand(h=>h.filter(x=>x!==s));
+   setDiscard(d=>[...d,{...s,discarded:true}]);
+   addLog("🗑️ Support "+s.name+" was discarded.");
  };
  const playCard=name=>{
-   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}showEntry(name);addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
+   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);setCharacterDraws(0);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}showEntry(name);addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
    if(bench.length>=3){addLog("Your Bench is full.");return;}
    setBench(b=>[...b,name]);setHand(h=>h.filter(x=>x!==name));addLog(name+" was placed on the Bench.");
  };
@@ -227,9 +255,9 @@ export default function App(){
     setHp(h=>({...h,[active]:next}));showDamage("player",damage);addLog(currentOpponent.name+" used "+currentOpponent.attack+" for "+damage+" damage."+(prevented?" Protection prevented "+prevented+"!":""));
     if(currentOpponent.ai==="Poison"){setPlayerStatus(p=>({...p,plague:2}));addLog("☠️ Venom inflicted Plague for 2 turns.");}
     if(currentOpponent.ai==="Balanced"&&Math.random()<.3){setPlayerStatus(p=>({...p,stun:1}));addLog("⚡ Legion tactics caused Stun!");}
-    if(next<=0&&active==="Jonah"&&!jonahUsed){setJonahUsed(true);setHp(h=>({...h,Jonah:15}));setPrayerDrawn(false);setTurn("player");addLog("🐋 Second Chance! Jonah survives with 15 HP.");return;}
-    if(next<=0){if(bench.length){const replacement=bench[0];setBench(b=>b.slice(1));setActive(replacement);if(replacement==="Michael")setShield(10);addLog("💀 "+characters[active].name+" was defeated! "+entryLine(replacement));setPrayerDrawn(false);setTurn("player");return;}setWinner(currentOpponent.name);addLog("💀 All your Characters have been defeated.");return;}
-    setPrayerDrawn(false);setTurn("player");addLog(playerStatus.stun>0?"⚡ You are stunned. End your turn to recover.":"Your turn! Draw from the Prayer Deck.");
+    if(next<=0&&active==="Jonah"&&!jonahUsed){setJonahUsed(true);setHp(h=>({...h,Jonah:15}));setPrayerDrawn(false);setCharacterDraws(0);setTurn("player");addLog("🐋 Second Chance! Jonah survives with 15 HP.");return;}
+    if(next<=0){if(bench.length){const replacement=bench[0];setBench(b=>b.slice(1));setActive(replacement);if(replacement==="Michael")setShield(10);addLog("💀 "+characters[active].name+" was defeated! "+entryLine(replacement));setPrayerDrawn(false);setCharacterDraws(0);setTurn("player");return;}setWinner(currentOpponent.name);addLog("💀 All your Characters have been defeated.");return;}
+    setPrayerDrawn(false);setCharacterDraws(0);setTurn("player");addLog(playerStatus.stun>0?"⚡ You are stunned. End your turn to recover.":"Your turn! Draw from the Prayer Deck.");
    },650);
  };
  const endTurn=()=>{
@@ -303,7 +331,7 @@ export default function App(){
   <section className="battle-dashboard">
    <div className="resource">
     <div className="resource-main">🙏 <span>PRAYERS</span> <b>{prayers}/10</b></div>
-    <div className="resource-details"><span>🎴 {deck.length} Characters</span><span>✨ {supportDeck.length} Supports</span><span>🙏 {prayerDeck.length} Prayer Deck</span><span>🗑️ {discard.length} Support Discard</span></div>
+    <div className="resource-details"><span>🎴 {deck.length} Character Deck</span><span>🖐️ {hand.length}/3 Character Hand</span><span>🔁 {characterDraws}/2 Character Draws</span><span>✨ {supportDeck.length} Supports</span><span>🛡️ {supportHand.length}/3 Support Hand</span><span>🙏 {prayerDeck.length} Prayer Deck</span><span>🗑️ {discard.length} Discard</span></div>
    </div>
    <div className="controls">
     <div className="action-group attack-group">
@@ -316,15 +344,15 @@ export default function App(){
      <small className="action-label">ACTIONS</small>
      <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button>
      <button className="end-turn" onClick={endTurn} disabled={turn!=="player"||!!winner}>⏭️ End Turn</button>
-     <button onClick={draw} disabled={turn==="enemy"||!!winner}>🎴 Draw Character</button>
-     <button onClick={drawSupport} disabled={turn==="enemy"||!!winner}>✨ Draw Support</button>
+     <button onClick={draw} disabled={turn!=="player"||!!winner||hand.length>=3||characterDraws>=2}>🎴 Draw Character ({characterDraws}/2)</button>
+     <button onClick={drawSupport} disabled={turn!=="player"||!!winner||supportHand.length>=3}>✨ Draw Support ({supportHand.length}/3)</button>
     </div>
    </div>
   </section>
 
   <section className="battle-hands">
-   <div className="hand"><div className="hand-heading"><h3>YOUR CHARACTER HAND</h3><span>{hand.length} cards</span></div>{hand.length?<div className="hand-cards">{hand.map(n=><Card key={n} card={characters[n]} hp={hp[n]} onClick={()=>playCard(n)}/>)}</div>:<p>No Character cards in hand.</p>}</div>
-   <div className="support-hand"><div className="hand-heading"><h3>✨ YOUR SUPPORT HAND</h3><span>{supportHand.length} cards</span></div>{supportHand.length?<div className="support-cards">{supportHand.map(s=><button className="support-card" key={s.id} onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button>)}</div>:<p>No Support cards in hand.</p>}</div>
+   <div className="hand"><div className="hand-heading"><h3>YOUR CHARACTER HAND</h3><span>{hand.length}/3 cards</span></div>{hand.length?<div className="hand-cards">{hand.map(n=><div className="hand-card-wrap" key={n}><Card card={characters[n]} hp={hp[n]} onClick={()=>playCard(n)}/><button className="discard-card" onClick={()=>discardCharacter(n)} disabled={turn==="enemy"||!!winner}>🗑️ Discard</button></div>)}</div>:<p>No Character cards in hand.</p>}</div>
+   <div className="support-hand"><div className="hand-heading"><h3>✨ YOUR SUPPORT HAND</h3><span>{supportHand.length}/3 cards</span></div>{supportHand.length?<div className="support-cards">{supportHand.map(s=><div className="support-card-wrap" key={s.id}><button className="support-card" onClick={()=>playSupport(s)}><b>{s.icon} {s.name}</b><small>{s.text}</small><em>Play Once • Discard</em></button><button className="discard-card support-discard" onClick={()=>discardSupport(s)} disabled={turn==="enemy"||!!winner}>🗑️ Discard</button></div>)}</div>:<p>No Support cards in hand.</p>}</div>
   </section>
 
   {winner&&<div className="overlay"><div className="result"><h2>{winner==="Player"?"🎉 VICTORY!":"💀 DEFEAT"}</h2><p>{winner==="Player"?"You defeated Training Pharaoh!":"Training Pharaoh wins."}</p><button onClick={start}>Practice Again</button></div></div>}
