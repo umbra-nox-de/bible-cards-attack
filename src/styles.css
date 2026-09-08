@@ -11,3 +11,17 @@
 .sell-card:hover{background:#8b5d37}
 .second-attack{background:#7a4d24;border-color:#d7a75c}
 .player>h3{margin:16px 0 8px;color:#e8c567}
+
+
+.character-card em{font-size:.65rem;opacity:.8;margin-left:6px}
+.passive{font-size:.72rem;margin-top:8px;padding:6px;border-top:1px solid #8d6e3e}
+.common{border-color:#c8c8c8}.uncommon{border-color:#5ea75e}.rare{border-color:#4d9bd6}.epic{border-color:#a66be0}.legendary{border-color:#e3b341}.mythic{border-color:#e45757}
+.blue-attack{background:#1f5f86;border-color:#71b8e6}
+.opponent-picker{margin:18px auto;padding:12px;border:1px solid #76572f;border-radius:12px;max-width:460px}
+.opponent-picker select{padding:9px;border-radius:8px;background:#211913;color:#f8e9c6;border:1px solid #a67c36}
+.deck-columns{display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:left;max-width:1000px;margin:20px auto}
+.picker,.built-deck{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+.picker button,.built-deck button{font-size:.9rem;padding:9px 11px}
+.built-deck{padding:14px;border:1px solid #76572f;border-radius:14px;min-height:180px}
+.status-row{min-height:24px;color:#ffcf6b;font-weight:bold}
+@media(max-width:700px){.deck-columns{grid-template-columns:1fr}.opponent-picker select{max-width:100%}}
