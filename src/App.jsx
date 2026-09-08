@@ -107,6 +107,7 @@ function Card({card,hp,onClick,active,selected}){
 
 export default function App(){
  const [page,setPage]=useState("home");
+ const [selectedCardDetail,setSelectedCardDetail]=useState(null);
  const [unlockedGA,setUnlockedGA]=useState(()=>localStorage.getItem("bca-GA")==="true");
  const [unlockedWO,setUnlockedWO]=useState(()=>localStorage.getItem("bca-WO")==="true");
  const [selectedOpponent,setSelectedOpponent]=useState("Pharaoh");
@@ -263,7 +264,38 @@ export default function App(){
   {winner&&<div className="overlay"><div className="result"><h2>{winner==="Player"?"🎉 VICTORY!":"💀 DEFEAT"}</h2><p>{winner==="Player"?"You defeated Training Pharaoh!":"Training Pharaoh wins."}</p><button onClick={start}>Practice Again</button></div></div>}
  </main>;
  const availableCards=[...starter,...(unlockedGA?["GA"]:[]),...(unlockedWO?["WO"]:[])];
- const collection=<main className="page"><h1>🎴 Card Collection</h1><p>⚪ Common • 🟢 Uncommon • 🔵 Rare • 🟣 Epic • 🟡 Legendary • 🔴 Mythic</p><div className="collection-grid">{availableCards.map(n=><Card key={n} card={characters[n]} hp={characters[n].hp}/>)}{!unlockedGA&&<div className="locked">🔒<br/>MYTHICAL<br/><small>GA — Locked by Code</small></div>}{!unlockedWO&&<div className="locked blue">🔒<br/>MYTHICAL<br/><small>WO — Locked by Code</small></div>}</div></main>;
+ const detailAttackData=card=>{
+   if(card.name==="General Overseer")return [
+    {name:"Fifteen More Minutes",cost:1,damage:25,text:"A surprisingly short delay that still somehow hurts."},
+    {name:"Amen Brother Jackson",cost:3,damage:45,text:"Deals damage and restores 10 HP."},
+    {name:"Smile Brother Jackson",cost:5,damage:70,text:"Ultimate • Once per battle • Grants 20 Protection."}
+   ];
+   if(card.name==="West Overseer")return [
+    {name:"One More Thing",cost:1,damage:30,text:"The conversation was not actually over."},
+    {name:"Long Winded",cost:3,damage:55,text:"A powerful extended explanation."},
+    {name:"Last Conclusion",cost:5,damage:72,text:"Ultimate • The final conclusion... probably."}
+   ];
+   return [
+    {name:card.attack,cost:card.cost,damage:card.damage,text:"Primary attack."},
+    ...(card.secondAttack?[{name:card.secondAttack,cost:card.secondCost,damage:card.secondDamage,text:"Power attack."}]:[])
+   ];
+ };
+ const cardDetail=selectedCardDetail&&(()=>{
+   const card=characters[selectedCardDetail];
+   const attacks=detailAttackData(card);
+   return <div className="card-modal-backdrop" onClick={()=>setSelectedCardDetail(null)}>
+    <div className="card-modal" onClick={e=>e.stopPropagation()}>
+     <button className="modal-close" onClick={()=>setSelectedCardDetail(null)}>✕</button>
+     <div className={"detail-art art-"+(artMap[selectedCardDetail]||artMap[card.name]||"default")}><div className="art-icon">{card.icon}</div><div className="art-vignette"></div></div>
+     <div className="detail-heading"><div><span>{card.icon}</span><h2>{card.name}</h2><p>{card.title}</p></div><b className={"rarity-tag "+String(card.rarity||"").toLowerCase()}>{card.rarity}</b></div>
+     <div className="detail-stats"><div><strong>❤️ {card.hp}</strong><small>MAX HP</small></div><div><strong>⚡ {attacks.length}</strong><small>ATTACKS</small></div></div>
+     {card.passive&&<section className="detail-passive"><h3>✨ PASSIVE ABILITY</h3><p>{card.passive}</p></section>}
+     <section className="detail-attacks"><h3>⚔️ ATTACKS</h3>{attacks.map((a,i)=><div className={"attack-info "+(i===2?"ultimate-info":"")} key={a.name}><div><b>{i===2?"⭐ ":"⚔️ "}{a.name}</b><small>{a.text}</small></div><div className="attack-numbers"><span>🙏 {a.cost}</span><span>💥 {a.damage}</span></div></div>)}</section>
+     <p className="detail-hint">Prayer costs and abilities are subject to future balancing.</p>
+    </div>
+   </div>;
+ })();
+ const collection=<main className="page collection-page"><h1>🎴 Card Collection</h1><p className="collection-subtitle">Your unlocked characters. Click any card to inspect its HP, abilities, and attacks.</p><p>⚪ Common • 🟢 Uncommon • 🔵 Rare • 🟣 Epic • 🟡 Legendary • 🔴 Mythic</p><div className="collection-grid">{availableCards.map(n=><Card key={n} card={characters[n]} hp={characters[n].hp} onClick={()=>setSelectedCardDetail(n)}/>)}{!unlockedGA&&<div className="locked">🔒<br/>MYTHICAL<br/><small>GA — Locked by Code</small></div>}{!unlockedWO&&<div className="locked blue">🔒<br/>MYTHICAL<br/><small>WO — Locked by Code</small></div>}</div>{cardDetail}</main>;
  const addDeckCard=id=>{if(builtDeck.length>=20)return;if(!id.startsWith("S:")&&builtDeck.filter(x=>!x.startsWith("S:")).length>=12)return;saveDeck([...builtDeck,id]);};
  const removeDeckCard=i=>saveDeck(builtDeck.filter((_,x)=>x!==i));
  const characterCount=builtDeck.filter(x=>!x.startsWith("S:")).length;
