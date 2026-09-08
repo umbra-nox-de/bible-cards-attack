@@ -32,7 +32,8 @@ const battlefieldLines={
   Michael:"⚔️ Michael descends to the battlefield from heaven, wings spread and sword ready.",
   Elijah:"🔥 Elijah calls down fire as he enters the battlefield.",
   Esther:"👑 Esther enters the battlefield—for such a time as this.",
-  GA:"🔴 The General Overseer arrives. The meeting is now in session... and it may take fifteen more minutes."
+  GA:"🔴 The General Overseer arrives. The meeting is now in session... and it may take fifteen more minutes.",
+  WO:"🔵 The West Overseer arrives. He has one more thing to say before the battle begins."
 };
 const entryLine=name=>battlefieldLines[name]||characters[name].name+" entered the battlefield.";
 
@@ -69,6 +70,7 @@ const attackLines={
     "Royal Petition":"👑 Esther makes her request with royal confidence.",
     "Queen's Decree":"📜 Esther issues a decree. The battlefield has been formally notified."
   },
+  "West Overseer":{"One More Thing":"🔵 The West Overseer begins, 'Just one more thing...'","Long Winded":"🔵 The West Overseer continues. The attack somehow gets longer.","Last Conclusion":"🔵 The West Overseer reaches the last conclusion. This time it really is the last one."},
   "General Overseer":{
     "Fifteen More Minutes":"🔴 The General Overseer says, 'Just fifteen more minutes.' Nobody believes him.",
     "Amen Brother Jackson":"🔴 The General Overseer hears a point he likes. 'Amen, Brother Jackson!'",
@@ -107,6 +109,7 @@ export default function App(){
  const [estherSupportUsed,setEstherSupportUsed]=useState(false);
  const [unlockCode,setUnlockCode]=useState("");
  const [unlockMessage,setUnlockMessage]=useState("");
+ const [builtDeck,setBuiltDeck]=useState(()=>{try{return JSON.parse(localStorage.getItem("bca-deck"))||[...starter,...starter.slice(0,4),...supports.map(s=>"S:"+s.id)]}catch{return [...starter,...starter.slice(0,4),...supports.map(s=>"S:"+s.id)]}});
  const [hand,setHand]=useState([]);
  const [deck,setDeck]=useState([]);
  const [supportHand,setSupportHand]=useState([]);
@@ -127,16 +130,21 @@ export default function App(){
  const [winner,setWinner]=useState(null);
  const [log,setLog]=useState([]);
 
- const addLog=m=>setLog(p=>[m,...p].slice(0,10));
+ const addLog=m=>setLog(p=>[m,...p].slice(0,14));
+ const currentOpponent=opponents[selectedOpponent];
+ const saveDeck=d=>{setBuiltDeck(d);localStorage.setItem("bca-deck",JSON.stringify(d));};
  const start=()=>{
-   const playable=[...starter,...(unlockedGA?["GA"]:[])];
+   const allowed=[...starter,...(unlockedGA?["GA"]:[]),...(unlockedWO?["WO"]:[])];
+   const configured=builtDeck.filter(x=>!x.startsWith("S:")&&allowed.includes(x));
+   const playable=configured.length?configured:[...starter];
    const order=[...playable].sort(()=>Math.random()-.5);
    const drawn=order.slice(0,3);
-   const values=Object.fromEntries([...starter,...(unlockedGA?["GA"]:[])].map(n=>[n,characters[n].hp]));
-   const supportOrder=[...supports].sort(()=>Math.random()-.5);
+   const values=Object.fromEntries(allowed.map(n=>[n,characters[n].hp]));
+   const configuredSupports=builtDeck.filter(x=>x.startsWith("S:")).map(x=>supports.find(s=>"S:"+s.id===x)).filter(Boolean);
+   const supportOrder=(configuredSupports.length?configuredSupports:supports).sort(()=>Math.random()-.5);
    const prayerOrder=[...prayerCards].sort(()=>Math.random()-.5);
-   setDeck(order.slice(3));setHand(drawn);setSupportHand(supportOrder.slice(0,2));setSupportDeck(supportOrder.slice(2));setDiscard([]);setShield(0);setEnemyDot(null);setGaUltimateUsed(false);setPrayerDeck(prayerOrder);setPrayerDiscard([]);setPrayerDrawn(false);setActive(null);setBench([]);setHp(values);
-   setEnemyHp(characters.Pharaoh.hp);setPrayers(0);setTurn("setup");setWinner(null);
+   setDeck(order.slice(3));setHand(drawn);setSupportHand(supportOrder.slice(0,2));setSupportDeck(supportOrder.slice(2));setDiscard([]);setShield(0);setEnemyDot(null);setGaUltimateUsed(false);setPrayerDeck(prayerOrder);setPrayerDiscard([]);setPrayerDrawn(false);setActive(null);setBench([]);setHp(values);setPlayerStatus({burn:0,plague:0,stun:0});setEnemyWeaken(0);setJonahUsed(false);setGideonUsed(false);setEstherSupportUsed(false);
+   setEnemyHp(currentOpponent.hp);setPrayers(0);setTurn("setup");setWinner(null);
    setLog(["Draw 3 Character cards. Choose one for your Active position."]);
    setPage("practice");
  };
@@ -151,7 +159,18 @@ export default function App(){
    addLog(next.icon+" "+next.name+" granted "+next.amount+" Prayer"+(next.amount===1?"":"s")+"!");
  };
  const drawSupport=()=>{if(!supportDeck.length){addLog("Your Support deck is empty.");return;}const [next,...rest]=supportDeck;setSupportDeck(rest);setSupportHand(h=>[...h,next]);addLog("You drew Support: "+next.name+".");};
- const playSupport=s=>{if(turn!=="player"||winner||!active)return; if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");} if(s.id==="armor"){setShield(15);addLog("🛡️ Armor of God will prevent 15 damage from the next enemy attack.");} if(s.id==="prayer"){setPrayers(p=>Math.min(10,p+2));addLog("🙏 Prayer Request granted 2 Prayers.");} if(s.id==="trumpets"){setEnemyHp(h=>Math.max(0,h-15));addLog("📯 Trumpets of Jericho dealt 15 damage.");} if(s.id==="temple"){setPrayers(p=>Math.min(10,p+3));addLog("🏛️ Temple of Solomon granted 3 Prayers, then was discarded.");} if(s.id==="manna"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+10)}));setPrayers(p=>Math.min(10,p+1));addLog("🌤️ Manna From Heaven restored 10 HP and granted 1 Prayer.");} setSupportHand(h=>h.filter(x=>x.id!==s.id));setDiscard(d=>[...d,s]);};
+ const playSupport=s=>{if(turn!=="player"||winner||!active)return;
+   if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");}
+   if(s.id==="armor"){setShield(20);addLog("🛡️ Armor of God granted 20 Protection.");}
+   if(s.id==="prayer"){setPrayers(p=>Math.min(10,p+2));addLog("🙏 Prayer Request granted 2 Prayers.");}
+   if(s.id==="trumpets"){setEnemyHp(h=>Math.max(0,h-15));addLog("📯 Trumpets of Jericho dealt 15 damage.");}
+   if(s.id==="temple"){setPrayers(p=>Math.min(10,p+3));addLog("🏛️ Temple of Solomon granted 3 Prayers, then was discarded.");}
+   if(s.id==="manna"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+10)}));setPrayers(p=>Math.min(10,p+1));addLog("🌤️ Manna restored 10 HP and granted 1 Prayer.");}
+   if(s.id==="dove"){setPlayerStatus({burn:0,plague:0,stun:0});addLog("🕊️ Dove of Peace removed all negative effects.");}
+   if(s.id==="commandments"){setEnemyWeaken(2);addLog("📜 Ten Commandments weakened the enemy for 2 turns.");}
+   if(active==="Esther"&&!estherSupportUsed){setPrayers(p=>Math.min(10,p+1));setEstherSupportUsed(true);addLog("👑 Royal Favor granted Esther 1 bonus Prayer.");}
+   setSupportHand(h=>h.filter(x=>x!==s));setDiscard(d=>[...d,s]);
+ };
  const draw=()=>{
    if(!deck.length){addLog("Your practice deck is empty.");return;}
    const [next,...rest]=deck;setDeck(rest);setHand(h=>[...h,next]);addLog("You drew "+next+".");
@@ -161,53 +180,51 @@ export default function App(){
    if(bench.length>=3){addLog("Your Bench is full.");return;}
    setBench(b=>[...b,name]);setHand(h=>h.filter(x=>x!==name));addLog(name+" was placed on the Bench.");
  };
+ const sellBench=name=>{if(turn==="enemy"||winner)return;setBench(b=>b.filter(x=>x!==name));setDiscard(d=>[...d,{id:"sold-"+name,name:characters[name].name}]);addLog("💰 "+characters[name].name+" was released from the Bench to make room.");};
  const switchActive=name=>{
    if(turn!=="player"||winner)return;
-   setBench(b=>[...b.filter(x=>x!==name),active]);setActive(name);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(name+" switched into the Active position.");
+   setBench(b=>[...b.filter(x=>x!==name),active]);setActive(name);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(entryLine(name));
  };
- const enemyTurn=currentHp=>{
+ const enemyTurn=()=>{
    setTurn("enemy");
    setTimeout(()=>{
-    if(enemyDot){const dotNext=Math.max(0,enemyHp-enemyDot.damage);setEnemyHp(dotNext);const left=enemyDot.turns-1;addLog("☠️ "+enemyDot.name+" dealt "+enemyDot.damage+" long-term damage ("+left+" turn(s) remaining).");setEnemyDot(left>0?{...enemyDot,turns:left}:null);if(dotNext<=0){setWinner("Player");addLog("Victory! Training Pharaoh was defeated by a long-term effect.");return;}}
-    const prevented=Math.min(shield,characters.Pharaoh.damage); const damage=characters.Pharaoh.damage-prevented; const next=Math.max(0,currentHp-damage); setShield(0);
-    setHp(h=>({...h,[active]:next}));addLog("Training Pharaoh used Chariot Charge for "+damage+" damage."+(prevented?" Armor of God prevented "+prevented+"!":""));
-    if(next<=0){
-      if(bench.length){
-       const replacement=bench[0];setBench(b=>b.slice(1));setActive(replacement);addLog(active+" was defeated! "+replacement+" entered the battle.");
-       setPrayerDrawn(false);setTurn("player");return;
-      }
-      setWinner("Training Pharaoh");addLog("All your Characters have been defeated.");return;
-    }
-    setPrayerDrawn(false);setTurn("player");addLog("Your turn! Draw from the Prayer Deck.");
+    if(enemyDot){const dotNext=Math.max(0,enemyHp-enemyDot.damage);setEnemyHp(dotNext);const left=enemyDot.turns-1;addLog("🔥☠️ "+enemyDot.name+" dealt "+enemyDot.damage+" long-term damage ("+left+" turn(s) remaining).");setEnemyDot(left>0?{...enemyDot,turns:left}:null);if(dotNext<=0){setWinner("Player");addLog("🎉 Victory! "+currentOpponent.name+" was defeated by a long-term effect.");return;}}
+    let base=currentOpponent.damage;
+    if(currentOpponent.ai==="Slow Power")base=Math.random()<.4?base+18:Math.max(15,base-8);
+    if(currentOpponent.ai==="Aggressive"&&Math.random()<.25)base+=10;
+    if(enemyWeaken>0){base=Math.max(1,base-10);setEnemyWeaken(x=>x-1);addLog("📜 The enemy is weakened! Damage reduced.");}
+    if(active==="Daniel"&&hp[active]<=characters.Daniel.hp/2){base=Math.ceil(base*.75);addLog("🦁 Lion's Courage reduced incoming damage.");}
+    const prevented=Math.min(shield,base),damage=base-prevented,next=Math.max(0,hp[active]-damage);setShield(0);
+    setHp(h=>({...h,[active]:next}));addLog(currentOpponent.name+" used "+currentOpponent.attack+" for "+damage+" damage."+(prevented?" Protection prevented "+prevented+"!":""));
+    if(currentOpponent.ai==="Poison"){setPlayerStatus(p=>({...p,plague:2}));addLog("☠️ Venom inflicted Plague for 2 turns.");}
+    if(currentOpponent.ai==="Balanced"&&Math.random()<.3){setPlayerStatus(p=>({...p,stun:1}));addLog("⚡ Legion tactics caused Stun!");}
+    if(next<=0&&active==="Jonah"&&!jonahUsed){setJonahUsed(true);setHp(h=>({...h,Jonah:15}));setPrayerDrawn(false);setTurn("player");addLog("🐋 Second Chance! Jonah survives with 15 HP.");return;}
+    if(next<=0){if(bench.length){const replacement=bench[0];setBench(b=>b.slice(1));setActive(replacement);if(replacement==="Michael")setShield(10);addLog("💀 "+characters[active].name+" was defeated! "+entryLine(replacement));setPrayerDrawn(false);setTurn("player");return;}setWinner(currentOpponent.name);addLog("💀 All your Characters have been defeated.");return;}
+    setPrayerDrawn(false);setTurn("player");addLog(playerStatus.stun>0?"⚡ You are stunned. End your turn to recover.":"Your turn! Draw from the Prayer Deck.");
    },650);
  };
  const endTurn=()=>{
    if(turn!=="player"||!active||winner)return;
    addLog("🙏 You end your turn and save your remaining Prayers.");
-   enemyTurn(hp[active]);
+   enemyTurn();
  };
  const attack=(mode="basic")=>{
    if(turn!=="player"||!active||winner)return;
-   const c=characters[active];
-   let data=mode==="second"?{name:c.secondAttack,cost:c.secondCost,damage:c.secondDamage}:{name:c.attack,cost:c.cost,damage:c.damage};
-   if(active==="GA"){
-     const ga={first:{name:"Fifteen More Minutes",cost:1,damage:25},second:{name:"Amen Brother Jackson",cost:3,damage:45,heal:10},ultimate:{name:"Smile Brother Jackson",cost:5,damage:70,shield:20}};
-     data=ga[mode]||ga.first;
-     if(mode==="ultimate"&&gaUltimateUsed){addLog("Smile Brother Jackson can only be used once per battle.");return;}
-   }
+   if(playerStatus.stun>0){addLog("⚡ You are stunned! End your turn to recover.");return;}
+   const card=characters[active];let data=mode==="second"?{name:card.secondAttack,cost:card.secondCost,damage:card.secondDamage}:{name:card.attack,cost:card.cost,damage:card.damage};
+   if(active==="GA"){const ga={first:{name:"Fifteen More Minutes",cost:1,damage:25},second:{name:"Amen Brother Jackson",cost:3,damage:45,heal:10},ultimate:{name:"Smile Brother Jackson",cost:5,damage:70,shield:20}};data=ga[mode]||ga.first;if(mode==="ultimate"&&gaUltimateUsed){addLog("Smile Brother Jackson can only be used once per battle.");return;}}
+   if(active==="WO"){const wo={basic:{name:"One More Thing",cost:2,damage:30},second:{name:"Long Winded",cost:4,damage:55},ultimate:{name:"Last Conclusion",cost:5,damage:72}};data=wo[mode]||wo.basic;if(mode!=="ultimate")data={...data,cost:Math.max(1,data.cost-1)};}
    if(prayers<data.cost){addLog("Not enough Prayers!");return;}
-   const flavor=attackLine(c.name,data.name);
-   if(flavor)addLog(flavor);
-   const next=Math.max(0,enemyHp-data.damage);setPrayers(p=>p-data.cost);setEnemyHp(next);
-   if(data.heal)setHp(h=>({...h,[active]:Math.min(c.hp,h[active]+data.heal)}));
-   if(data.shield)setShield(s=>s+data.shield);
-   if(active==="Michael"){setShield(s=>s+10);addLog("⚔️ Michael gained 10 protection.");}
-   if(active==="Elijah")setEnemyDot({name:"Heavenly Fire",damage:10,turns:3});
-   if(active==="Moses")setEnemyDot({name:"Plague of Egypt",damage:8,turns:2});
+   let damage=data.damage;if(active==="Gideon"&&!gideonUsed){damage+=10;setGideonUsed(true);addLog("🏺 Small Army added 10 surprise damage!");}
+   const critical=Math.random()<(active==="David"?.25:.15);if(critical){damage=Math.round(damage*1.5);addLog("💥 CRITICAL HIT! Extra damage!");}
+   const flavor=attackLine(card.name,data.name);if(flavor)addLog(flavor);
+   const next=Math.max(0,enemyHp-damage);setPrayers(p=>p-data.cost);setEnemyHp(next);
+   if(data.heal)setHp(h=>({...h,[active]:Math.min(card.hp,h[active]+data.heal)}));if(data.shield)setShield(s=>s+data.shield);
+   if(active==="Elijah"){setEnemyDot({name:"Burn",damage:8,turns:3});addLog("🔥 Burn will damage the enemy for 3 turns.");}
+   if(active==="Moses"){setEnemyDot({name:"Plague",damage:10,turns:2});addLog("☠️ Plague will damage the enemy for 2 turns.");}
    if(mode==="ultimate")setGaUltimateUsed(true);
-   addLog(c.name+" used "+data.name+" for "+data.damage+" damage!"+(data.heal?" Restored "+data.heal+" HP.":"")+(data.shield?" Gained "+data.shield+" protection.":""));
-   if(next<=0){setWinner("Player");addLog("Victory! Training Pharaoh was defeated.");return;}
-   enemyTurn(hp[active]);
+   addLog(card.name+" used "+data.name+" for "+damage+" damage!"+(data.heal?" Restored "+data.heal+" HP.":""));
+   if(next<=0){setWinner("Player");addLog("🎉 Victory! "+currentOpponent.name+" was defeated.");return;}enemyTurn();
  };
  const heal=()=>{if(turn==="player"&&active&&!winner){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");}};
  const practice=<main className="battle">
