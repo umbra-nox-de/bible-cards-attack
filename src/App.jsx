@@ -6,9 +6,13 @@ const characters = {
   Daniel:{name:"Daniel",title:"The Lion's Guest",hp:120,icon:"🦁",attack:"Lion's Courage",cost:2,damage:35},
   Gideon:{name:"Gideon",title:"The Unexpected Army",hp:110,icon:"🏺",attack:"Broken Jar",cost:2,damage:35},
   Moses:{name:"Moses",title:"The Sea Splitter",hp:140,icon:"🌊",attack:"Staff Strike",cost:2,damage:30},
+  Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",attack:"Heavenly Strike",cost:2,damage:40},
+  Elijah:{name:"Elijah",title:"Fire From Heaven",hp:125,icon:"🔥",attack:"Heavenly Fire",cost:3,damage:35},
+  Esther:{name:"Esther",title:"For Such a Time",hp:115,icon:"👑",attack:"Royal Petition",cost:2,damage:35},
+  GA:{name:"General Overseer",title:"MYTHICAL • Will Be Subject To Change",hp:150,icon:"🔴",attack:"Fifteen More Minutes",cost:1,damage:25},
   Pharaoh:{name:"Training Pharaoh",title:"Practice Opponent",hp:150,icon:"👑",attack:"Chariot Charge",cost:2,damage:30}
 };
-const starter=["David","Jonah","Daniel","Gideon","Moses"];
+const starter=["David","Jonah","Daniel","Gideon","Moses","Michael","Elijah","Esther"];
 const prayerCards=[
  {id:"small-prayer",name:"Small Prayer",icon:"🙏",amount:1,text:"Gain 1 Prayer."},
  {id:"united-prayer",name:"United Prayer",icon:"🙏🙏",amount:2,text:"Gain 2 Prayers."},
@@ -21,7 +25,9 @@ const supports=[
  {id:"loaves",name:"Loaves & Fishes",icon:"🍞",text:"Heal your Active Character for 20 HP."},
  {id:"armor",name:"Armor of God",icon:"🛡️",text:"Prevent 15 damage from the next enemy attack."},
  {id:"prayer",name:"Prayer Request",icon:"🙏",text:"Gain 2 Prayers."},
- {id:"trumpets",name:"Trumpets of Jericho",icon:"📯",text:"Deal 15 damage to Training Pharaoh."}
+ {id:"trumpets",name:"Trumpets of Jericho",icon:"📯",text:"Deal 15 damage to Training Pharaoh."},
+ {id:"temple",name:"Temple of Solomon",icon:"🏛️",text:"Gain 3 Prayers one time, then discard."},
+ {id:"manna",name:"Manna From Heaven",icon:"🌤️",text:"Heal 10 HP and gain 1 Prayer."}
 ];
 
 function Card({card,hp,onClick,active,selected}){
@@ -33,12 +39,17 @@ function Card({card,hp,onClick,active,selected}){
 
 export default function App(){
  const [page,setPage]=useState("home");
+ const [unlockedGA,setUnlockedGA]=useState(()=>localStorage.getItem("bca-GA")==="true");
+ const [unlockCode,setUnlockCode]=useState("");
+ const [unlockMessage,setUnlockMessage]=useState("");
  const [hand,setHand]=useState([]);
  const [deck,setDeck]=useState([]);
  const [supportHand,setSupportHand]=useState([]);
  const [supportDeck,setSupportDeck]=useState([]);
  const [discard,setDiscard]=useState([]);
  const [shield,setShield]=useState(0);
+ const [enemyDot,setEnemyDot]=useState(null);
+ const [gaUltimateUsed,setGaUltimateUsed]=useState(false);
  const [prayerDeck,setPrayerDeck]=useState([]);
  const [prayerDiscard,setPrayerDiscard]=useState([]);
  const [prayerDrawn,setPrayerDrawn]=useState(false);
@@ -53,12 +64,13 @@ export default function App(){
 
  const addLog=m=>setLog(p=>[m,...p].slice(0,10));
  const start=()=>{
-   const order=[...starter].sort(()=>Math.random()-.5);
+   const playable=[...starter,...(unlockedGA?["GA"]:[])];
+   const order=[...playable].sort(()=>Math.random()-.5);
    const drawn=order.slice(0,3);
-   const values=Object.fromEntries(starter.map(n=>[n,characters[n].hp]));
+   const values=Object.fromEntries([...starter,...(unlockedGA?["GA"]:[])].map(n=>[n,characters[n].hp]));
    const supportOrder=[...supports].sort(()=>Math.random()-.5);
    const prayerOrder=[...prayerCards].sort(()=>Math.random()-.5);
-   setDeck(order.slice(3));setHand(drawn);setSupportHand(supportOrder.slice(0,2));setSupportDeck(supportOrder.slice(2));setDiscard([]);setShield(0);setPrayerDeck(prayerOrder);setPrayerDiscard([]);setPrayerDrawn(false);setActive(null);setBench([]);setHp(values);
+   setDeck(order.slice(3));setHand(drawn);setSupportHand(supportOrder.slice(0,2));setSupportDeck(supportOrder.slice(2));setDiscard([]);setShield(0);setEnemyDot(null);setGaUltimateUsed(false);setPrayerDeck(prayerOrder);setPrayerDiscard([]);setPrayerDrawn(false);setActive(null);setBench([]);setHp(values);
    setEnemyHp(characters.Pharaoh.hp);setPrayers(0);setTurn("setup");setWinner(null);
    setLog(["Draw 3 Character cards. Choose one for your Active position."]);
    setPage("practice");
@@ -74,23 +86,24 @@ export default function App(){
    addLog(next.icon+" "+next.name+" granted "+next.amount+" Prayer"+(next.amount===1?"":"s")+"!");
  };
  const drawSupport=()=>{if(!supportDeck.length){addLog("Your Support deck is empty.");return;}const [next,...rest]=supportDeck;setSupportDeck(rest);setSupportHand(h=>[...h,next]);addLog("You drew Support: "+next.name+".");};
- const playSupport=s=>{if(turn!=="player"||winner||!active)return; if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");} if(s.id==="armor"){setShield(15);addLog("🛡️ Armor of God will prevent 15 damage from the next enemy attack.");} if(s.id==="prayer"){setPrayers(p=>Math.min(10,p+2));addLog("🙏 Prayer Request granted 2 Prayers.");} if(s.id==="trumpets"){setEnemyHp(h=>Math.max(0,h-15));addLog("📯 Trumpets of Jericho dealt 15 damage.");} setSupportHand(h=>h.filter(x=>x.id!==s.id));setDiscard(d=>[...d,s]);};
+ const playSupport=s=>{if(turn!=="player"||winner||!active)return; if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");} if(s.id==="armor"){setShield(15);addLog("🛡️ Armor of God will prevent 15 damage from the next enemy attack.");} if(s.id==="prayer"){setPrayers(p=>Math.min(10,p+2));addLog("🙏 Prayer Request granted 2 Prayers.");} if(s.id==="trumpets"){setEnemyHp(h=>Math.max(0,h-15));addLog("📯 Trumpets of Jericho dealt 15 damage.");} if(s.id==="temple"){setPrayers(p=>Math.min(10,p+3));addLog("🏛️ Temple of Solomon granted 3 Prayers, then was discarded.");} if(s.id==="manna"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+10)}));setPrayers(p=>Math.min(10,p+1));addLog("🌤️ Manna From Heaven restored 10 HP and granted 1 Prayer.");} setSupportHand(h=>h.filter(x=>x.id!==s.id));setDiscard(d=>[...d,s]);};
  const draw=()=>{
    if(!deck.length){addLog("Your practice deck is empty.");return;}
    const [next,...rest]=deck;setDeck(rest);setHand(h=>[...h,next]);addLog("You drew "+next+".");
  };
  const playCard=name=>{
-   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);addLog(name+" entered the Active position! Draw from the Prayer Deck.");return;}
+   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(name+" entered the Active position! Draw from the Prayer Deck.");return;}
    if(bench.length>=3){addLog("Your Bench is full.");return;}
    setBench(b=>[...b,name]);setHand(h=>h.filter(x=>x!==name));addLog(name+" was placed on the Bench.");
  };
  const switchActive=name=>{
    if(turn!=="player"||winner)return;
-   setBench(b=>[...b.filter(x=>x!==name),active]);setActive(name);addLog(name+" switched into the Active position.");
+   setBench(b=>[...b.filter(x=>x!==name),active]);setActive(name);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(name+" switched into the Active position.");
  };
  const enemyTurn=currentHp=>{
    setTurn("enemy");
    setTimeout(()=>{
+    if(enemyDot){const dotNext=Math.max(0,enemyHp-enemyDot.damage);setEnemyHp(dotNext);const left=enemyDot.turns-1;addLog("☠️ "+enemyDot.name+" dealt "+enemyDot.damage+" long-term damage ("+left+" turn(s) remaining).");setEnemyDot(left>0?{...enemyDot,turns:left}:null);if(dotNext<=0){setWinner("Player");addLog("Victory! Training Pharaoh was defeated by a long-term effect.");return;}}
     const prevented=Math.min(shield,characters.Pharaoh.damage); const damage=characters.Pharaoh.damage-prevented; const next=Math.max(0,currentHp-damage); setShield(0);
     setHp(h=>({...h,[active]:next}));addLog("Training Pharaoh used Chariot Charge for "+damage+" damage."+(prevented?" Armor of God prevented "+prevented+"!":""));
     if(next<=0){
@@ -103,10 +116,24 @@ export default function App(){
     setPrayerDrawn(false);setTurn("player");addLog("Your turn! Draw from the Prayer Deck.");
    },650);
  };
- const attack=()=>{
+ const attack=(mode="basic")=>{
    if(turn!=="player"||!active||winner)return;
-   const c=characters[active];if(prayers<c.cost){addLog("Not enough Prayers!");return;}
-   const next=Math.max(0,enemyHp-c.damage);setPrayers(p=>p-c.cost);setEnemyHp(next);addLog(c.name+" used "+c.attack+" for "+c.damage+" damage!");
+   const c=characters[active];
+   let data={name:c.attack,cost:c.cost,damage:c.damage};
+   if(active==="GA"){
+     const ga={first:{name:"Fifteen More Minutes",cost:1,damage:25},second:{name:"Amen Brother Jackson",cost:3,damage:45,heal:10},ultimate:{name:"Smile Brother Jackson",cost:5,damage:70,shield:20}};
+     data=ga[mode]||ga.first;
+     if(mode==="ultimate"&&gaUltimateUsed){addLog("Smile Brother Jackson can only be used once per battle.");return;}
+   }
+   if(prayers<data.cost){addLog("Not enough Prayers!");return;}
+   const next=Math.max(0,enemyHp-data.damage);setPrayers(p=>p-data.cost);setEnemyHp(next);
+   if(data.heal)setHp(h=>({...h,[active]:Math.min(c.hp,h[active]+data.heal)}));
+   if(data.shield)setShield(s=>s+data.shield);
+   if(active==="Michael"){setShield(s=>s+10);addLog("⚔️ Michael gained 10 protection.");}
+   if(active==="Elijah")setEnemyDot({name:"Heavenly Fire",damage:10,turns:3});
+   if(active==="Moses")setEnemyDot({name:"Plague of Egypt",damage:8,turns:2});
+   if(mode==="ultimate")setGaUltimateUsed(true);
+   addLog(c.name+" used "+data.name+" for "+data.damage+" damage!"+(data.heal?" Restored "+data.heal+" HP.":"")+(data.shield?" Gained "+data.shield+" protection.":""));
    if(next<=0){setWinner("Player");addLog("Victory! Training Pharaoh was defeated.");return;}
    enemyTurn(hp[active]);
  };
@@ -119,7 +146,7 @@ export default function App(){
    <h3>YOUR BENCH</h3><div className="bench">{[0,1,2].map(i=>bench[i]?<Card key={bench[i]} card={characters[bench[i]]} hp={hp[bench[i]]} onClick={()=>switchActive(bench[i])}/>:<div className="empty-slot" key={i}>EMPTY</div>)}</div>
    {active?<Card card={characters[active]} hp={hp[active]} active/>:<div className="empty-active">Choose an Active Character from your hand.</div>}
    <div className="controls"><div className="resource">🙏 PRAYERS: <b>{prayers}/10</b> • 🎴 CHARACTERS: {deck.length} • ✨ SUPPORTS: {supportDeck.length} • 🙏 PRAYER DECK: {prayerDeck.length} • 🗑️ SUPPORT DISCARD: {discard.length} • 📿 PRAYER DISCARD: {prayerDiscard.length}</div>
-    {active&&<><button className="attack" onClick={attack} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button>
+    {active&&active!=="GA"&&<button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button>}{active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
     <button className="prayer-draw" onClick={drawPrayer} disabled={turn!=="player"||!!winner||prayerDrawn}>🙏 Draw Prayer {prayerDrawn?"✓":""}</button></>}
     <button onClick={draw} disabled={turn==="enemy"||!!winner}>🎴 Draw Character</button><button onClick={drawSupport} disabled={turn==="enemy"||!!winner}>✨ Draw Support</button>
    </div>
@@ -128,10 +155,11 @@ export default function App(){
   <aside className="log"><h3>📜 Battle Log</h3>{log.map((x,i)=><p key={i}>{x}</p>)}</aside>
   {winner&&<div className="overlay"><div className="result"><h2>{winner==="Player"?"🎉 VICTORY!":"💀 DEFEAT"}</h2><p>{winner==="Player"?"You defeated Training Pharaoh!":"Training Pharaoh wins."}</p><button onClick={start}>Practice Again</button></div></div>}
  </main>;
- const collection=<main className="page"><h1>🎴 Card Collection</h1><p>Practice cards currently available.</p><div className="collection-grid">{starter.map(n=><Card key={n} card={characters[n]} hp={characters[n].hp}/>)}<div className="locked">🔒<br/>MYTHICAL<br/><small>GA — Locked by Code</small></div><div className="locked blue">🔒<br/>MYTHICAL<br/><small>WO — Locked by Code</small></div></div></main>;
- const unlock=<main className="page"><h1>🔐 Unlock Cards</h1><p>Mythical cards will use individual secret codes.</p><input placeholder="Enter unlock code"/><button onClick={()=>alert("Code validation will be connected later.")}>UNLOCK</button><div className="mythics"><div className="mythic red">🔴 GENERAL OVERSEER<br/><small>GA • 150 HP • Locked</small></div><div className="mythic blue">🔵 WEST OVERSEER<br/><small>WO • 150 HP • Locked</small></div></div></main>;
+ const collection=<main className="page"><h1>🎴 Card Collection</h1><p>Practice cards currently available.</p><div className="collection-grid">{[...starter,...(unlockedGA?["GA"]:[])].map(n=><Card key={n} card={characters[n]} hp={characters[n].hp}/>)}{!unlockedGA&&<div className="locked">🔒<br/>MYTHICAL<br/><small>GA — Locked by Code</small></div>}<div className="locked blue">🔒<br/>MYTHICAL<br/><small>WO — Locked by Code</small></div></div></main>;
+ const unlock=<main className="page"><h1>🔐 Unlock Cards</h1><p>Each Mythical card has its own code. Unlocks are saved on this device.</p><div className="unlock-box"><input value={unlockCode} onChange={e=>setUnlockCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitCode()} placeholder="Enter unlock code"/><button onClick={submitCode}>UNLOCK</button><p>{unlockMessage}</p></div><div className="mythics"><div className="mythic red">🔴 GENERAL OVERSEER<br/><small>GA • 150 HP • {unlockedGA?"UNLOCKED":"Locked"}</small></div><div className="mythic blue">🔵 WEST OVERSEER<br/><small>WO • 150 HP • Locked</small></div></div></main>;
+ const submitCode=()=>{const code=unlockCode.trim().toUpperCase();if(code==="121GA"){localStorage.setItem("bca-GA","true");setUnlockedGA(true);setUnlockCode("");setUnlockMessage("🔴 GENERAL OVERSEER UNLOCKED! GA is now available in Collection and Practice.");}else setUnlockMessage("❌ That code did not unlock a card.");};
  if(page==="practice")return practice;
  if(page==="collection")return <><nav><button onClick={()=>setPage("home")}>Home</button></nav>{collection}</>;
  if(page==="unlock")return <><nav><button onClick={()=>setPage("home")}>Home</button></nav>{unlock}</>;
- return <main className="home"><div className="hero"><div className="cross">✝️</div><h1>BIBLE<br/><span>CARDS ATTACK</span></h1><p>Faith • Strategy • Chaos</p><div className="home-buttons"><button className="primary" onClick={start}>⚔️ PRACTICE</button><button onClick={()=>setPage("collection")}>🎴 COLLECTION</button><button onClick={()=>setPage("unlock")}>🔐 UNLOCK CARDS</button></div></div><section><h2>Proof of Concept • Version 0.3</h2><p>Draw Characters, Support Cards, and Prayer Cards. Choose your Active card, build your Bench, and battle Training Pharaoh.</p></section></main>;
+ return <main className="home"><div className="hero"><div className="cross">✝️</div><h1>BIBLE<br/><span>CARDS ATTACK</span></h1><p>Faith • Strategy • Chaos</p><div className="home-buttons"><button className="primary" onClick={start}>⚔️ PRACTICE</button><button onClick={()=>setPage("collection")}>🎴 COLLECTION</button><button onClick={()=>setPage("unlock")}>🔐 UNLOCK CARDS</button></div></div><section><h2>Proof of Concept • Version 0.4</h2><p>Draw Characters, Support Cards, and Prayer Cards. Use healing, protection, long-term effects, and unlock Mythical cards.</p></section></main>;
 }
