@@ -14,7 +14,12 @@ const characters = {
   Pharaoh:{name:"Training Pharaoh",title:"Practice Opponent",hp:150,icon:"👑",attack:"Chariot Charge",cost:2,damage:30}
 };
 const starter=["David","Jonah","Daniel","Gideon","Moses","Michael","Elijah","Esther"];
-const opponents={Pharaoh:{name:"Training Pharaoh",hp:150,icon:"👑",attack:"Chariot Charge",damage:30,ai:"Aggressive"},Goliath:{name:"Goliath",hp:190,icon:"🗿",attack:"Giant\'s Swing",damage:42,ai:"Slow Power"},Serpent:{name:"The Serpent",hp:135,icon:"🐍",attack:"Venom Strike",damage:22,ai:"Poison"},Centurion:{name:"Roman Centurion",hp:160,icon:"🛡️",attack:"Legion Strike",damage:28,ai:"Balanced"}};
+const opponents={
+ Pharaoh:{name:"Training Pharaoh",title:"Practice Opponent",hp:150,icon:"👑",rarity:"Training",passive:"Royal Command — occasionally attacks harder.",attack:"Chariot Charge",damage:30,ai:"Aggressive"},
+ Goliath:{name:"Goliath",title:"The Philistine Giant",hp:190,icon:"🗿",rarity:"Boss",passive:"Giant's Strength — slow attacks can hit extremely hard.",attack:"Giant's Swing",damage:42,ai:"Slow Power"},
+ Serpent:{name:"The Serpent",title:"The Deceiver",hp:135,icon:"🐍",rarity:"Boss",passive:"Venom — attacks inflict Plague.",attack:"Venom Strike",damage:22,ai:"Poison"},
+ Centurion:{name:"Roman Centurion",title:"Commander of the Legion",hp:160,icon:"🛡️",rarity:"Elite",passive:"Legion Tactics — may inflict Stun.",attack:"Legion Strike",damage:28,ai:"Balanced"}
+};
 const prayerCards=[
  {id:"small-prayer",name:"Small Prayer",icon:"🙏",amount:1,text:"Gain 1 Prayer."},
  {id:"united-prayer",name:"United Prayer",icon:"🙏🙏",amount:2,text:"Gain 2 Prayers."},
@@ -129,10 +134,16 @@ export default function App(){
  const [turn,setTurn]=useState("setup");
  const [winner,setWinner]=useState(null);
  const [log,setLog]=useState([]);
+ const [entryEffect,setEntryEffect]=useState(null);
+ const [damageEffect,setDamageEffect]=useState(null);
+ const [healEffect,setHealEffect]=useState(null);
 
  const addLog=m=>setLog(p=>[m,...p].slice(0,14));
  const currentOpponent=opponents[selectedOpponent];
  const saveDeck=d=>{setBuiltDeck(d);localStorage.setItem("bca-deck",JSON.stringify(d));};
+ const showEntry=name=>{setEntryEffect(name);setTimeout(()=>setEntryEffect(null),900);};
+ const showDamage=(target,amount,critical=false)=>{setDamageEffect({target,amount,critical});setTimeout(()=>setDamageEffect(null),850);};
+ const showHeal=amount=>{setHealEffect(amount);setTimeout(()=>setHealEffect(null),850);};
  const start=()=>{
    const allowed=[...starter,...(unlockedGA?["GA"]:[]),...(unlockedWO?["WO"]:[])];
    const configured=builtDeck.filter(x=>!x.startsWith("S:")&&allowed.includes(x));
@@ -160,12 +171,12 @@ export default function App(){
  };
  const drawSupport=()=>{if(!supportDeck.length){addLog("Your Support deck is empty.");return;}const [next,...rest]=supportDeck;setSupportDeck(rest);setSupportHand(h=>[...h,next]);addLog("You drew Support: "+next.name+".");};
  const playSupport=s=>{if(turn!=="player"||winner||!active)return;
-   if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");}
+   if(s.id==="loaves"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));showHeal(20);addLog("🍞 Loaves & Fishes restored 20 HP.");}
    if(s.id==="armor"){setShield(20);addLog("🛡️ Armor of God granted 20 Protection.");}
    if(s.id==="prayer"){setPrayers(p=>Math.min(10,p+2));addLog("🙏 Prayer Request granted 2 Prayers.");}
    if(s.id==="trumpets"){setEnemyHp(h=>Math.max(0,h-15));addLog("📯 Trumpets of Jericho dealt 15 damage.");}
    if(s.id==="temple"){setPrayers(p=>Math.min(10,p+3));addLog("🏛️ Temple of Solomon granted 3 Prayers, then was discarded.");}
-   if(s.id==="manna"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+10)}));setPrayers(p=>Math.min(10,p+1));addLog("🌤️ Manna restored 10 HP and granted 1 Prayer.");}
+   if(s.id==="manna"){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+10)}));showHeal(10);setPrayers(p=>Math.min(10,p+1));addLog("🌤️ Manna restored 10 HP and granted 1 Prayer.");}
    if(s.id==="dove"){setPlayerStatus({burn:0,plague:0,stun:0});addLog("🕊️ Dove of Peace removed all negative effects.");}
    if(s.id==="commandments"){setEnemyWeaken(2);addLog("📜 Ten Commandments weakened the enemy for 2 turns.");}
    if(active==="Esther"&&!estherSupportUsed){setPrayers(p=>Math.min(10,p+1));setEstherSupportUsed(true);addLog("👑 Royal Favor granted Esther 1 bonus Prayer.");}
@@ -176,14 +187,14 @@ export default function App(){
    const [next,...rest]=deck;setDeck(rest);setHand(h=>[...h,next]);addLog("You drew "+next+".");
  };
  const playCard=name=>{
-   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
+   if(!active){setActive(name);setHand(h=>h.filter(x=>x!==name));setTurn("player");setPrayerDrawn(false);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}showEntry(name);addLog(entryLine(name));addLog("Your turn! Draw from the Prayer Deck.");return;}
    if(bench.length>=3){addLog("Your Bench is full.");return;}
    setBench(b=>[...b,name]);setHand(h=>h.filter(x=>x!==name));addLog(name+" was placed on the Bench.");
  };
  const sellBench=name=>{if(turn==="enemy"||winner)return;setBench(b=>b.filter(x=>x!==name));setDiscard(d=>[...d,{id:"sold-"+name,name:characters[name].name}]);addLog("💰 "+characters[name].name+" was released from the Bench to make room.");};
  const switchActive=name=>{
    if(turn!=="player"||winner)return;
-   setBench(b=>[...b.filter(x=>x!==name),active]);setActive(name);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}addLog(entryLine(name));
+   setBench(b=>[...b.filter(x=>x!==name),active]);setActive(name);if(name==="Michael"){setShield(s=>s+10);addLog("⚔️ Guardian's Wing granted Michael 10 protection.");}showEntry(name);addLog(entryLine(name));
  };
  const enemyTurn=()=>{
    setTurn("enemy");
@@ -195,7 +206,7 @@ export default function App(){
     if(enemyWeaken>0){base=Math.max(1,base-10);setEnemyWeaken(x=>x-1);addLog("📜 The enemy is weakened! Damage reduced.");}
     if(active==="Daniel"&&hp[active]<=characters.Daniel.hp/2){base=Math.ceil(base*.75);addLog("🦁 Lion's Courage reduced incoming damage.");}
     const prevented=Math.min(shield,base),damage=base-prevented,next=Math.max(0,hp[active]-damage);setShield(0);
-    setHp(h=>({...h,[active]:next}));addLog(currentOpponent.name+" used "+currentOpponent.attack+" for "+damage+" damage."+(prevented?" Protection prevented "+prevented+"!":""));
+    setHp(h=>({...h,[active]:next}));showDamage("player",damage);addLog(currentOpponent.name+" used "+currentOpponent.attack+" for "+damage+" damage."+(prevented?" Protection prevented "+prevented+"!":""));
     if(currentOpponent.ai==="Poison"){setPlayerStatus(p=>({...p,plague:2}));addLog("☠️ Venom inflicted Plague for 2 turns.");}
     if(currentOpponent.ai==="Balanced"&&Math.random()<.3){setPlayerStatus(p=>({...p,stun:1}));addLog("⚡ Legion tactics caused Stun!");}
     if(next<=0&&active==="Jonah"&&!jonahUsed){setJonahUsed(true);setHp(h=>({...h,Jonah:15}));setPrayerDrawn(false);setTurn("player");addLog("🐋 Second Chance! Jonah survives with 15 HP.");return;}
@@ -220,8 +231,8 @@ export default function App(){
    let damage=data.damage;if(active==="Gideon"&&!gideonUsed){damage+=10;setGideonUsed(true);addLog("🏺 Small Army added 10 surprise damage!");}
    const critical=Math.random()<(active==="David"?0.25:0.15);if(critical){damage=Math.round(damage*1.5);addLog("💥 CRITICAL HIT! Extra damage!");}
    const flavor=attackLine(card.name,data.name);if(flavor)addLog(flavor);
-   const next=Math.max(0,enemyHp-damage);setPrayers(p=>p-data.cost);setEnemyHp(next);
-   if(data.heal)setHp(h=>({...h,[active]:Math.min(card.hp,h[active]+data.heal)}));if(data.shield)setShield(s=>s+data.shield);
+   const next=Math.max(0,enemyHp-damage);setPrayers(p=>p-data.cost);setEnemyHp(next);showDamage("enemy",damage,critical);
+   if(data.heal){setHp(h=>({...h,[active]:Math.min(card.hp,h[active]+data.heal)}));showHeal(data.heal);}if(data.shield)setShield(s=>s+data.shield);
    if(active==="Elijah"){setEnemyDot({name:"Burn",damage:8,turns:3});addLog("🔥 Burn will damage the enemy for 3 turns.");}
    if(active==="Moses"){setEnemyDot({name:"Plague",damage:10,turns:2});addLog("☠️ Plague will damage the enemy for 2 turns.");}
    if(mode==="ultimate")setGaUltimateUsed(true);
@@ -231,11 +242,11 @@ export default function App(){
  const heal=()=>{if(turn==="player"&&active&&!winner){setHp(h=>({...h,[active]:Math.min(characters[active].hp,h[active]+20)}));addLog("🍞 Loaves & Fishes restored 20 HP.");}};
  const practice=<main className="battle">
   <header className="battle-header"><button onClick={()=>setPage("home")}>← Home</button><h1>🃏 BIBLE CARDS ATTACK</h1><span>{currentOpponent.ai} AI</span></header>
-  <section className="opponent"><h2>{currentOpponent.icon} {currentOpponent.name}</h2><Card card={currentOpponent} hp={enemyHp} active/><p>{enemyWeaken>0?"📜 WEAKENED • "+enemyWeaken+" turn(s)":""}</p></section>
+  <section className="opponent battlefield-side enemy-side"><h2>👿 ENEMY</h2><div className="battle-card-wrap"><Card card={currentOpponent} hp={enemyHp} active/><div className="enemy-ai">🤖 {currentOpponent.ai} AI</div>{damageEffect?.target==="enemy"&&<div className={"damage-pop "+(damageEffect.critical?"critical-pop":"")}>{damageEffect.critical?"💥 CRIT! ":"-"}{damageEffect.amount}</div>}{enemyDot&&<div className="status-badge enemy-status">{enemyDot.name==="Burn"?"🔥 BURN":"☠️ PLAGUE"} • {enemyDot.turns} turn(s)</div>}</div><p>{enemyWeaken>0?"📜 WEAKENED • "+enemyWeaken+" turn(s)":""}</p></section>
   <section className="vs">⚔️ VS ⚔️</section>
   <section className="player">
    <h3>⭐ YOUR ACTIVE CHARACTER</h3>
-   {active?<Card card={characters[active]} hp={hp[active]} active/>:<div className="empty-active">Choose an Active Character from your hand.</div>}
+   {active?<div className="battle-card-wrap player-card-wrap"><Card card={characters[active]} hp={hp[active]} active selected={entryEffect===active}/>{damageEffect?.target==="player"&&<div className="damage-pop player-damage">-{damageEffect.amount}</div>}{healEffect&&<div className="heal-pop">+{healEffect}</div>}{entryEffect===active&&<div className="entry-banner">✨ {characters[active].name.toUpperCase()} ENTERS THE BATTLEFIELD ✨</div>}{shield>0&&<div className="status-badge shield-badge">🛡️ PROTECTION {shield}</div>}<div className="status-row">{playerStatus.burn>0&&"🔥 BURN "+playerStatus.burn+" "} {playerStatus.plague>0&&"☠️ PLAGUE "+playerStatus.plague+" "} {playerStatus.stun>0&&"⚡ STUNNED"}</div></div>:<div className="empty-active">Choose an Active Character from your hand.</div>}
    <h3>YOUR BENCH</h3><div className="bench">{[0,1,2].map(i=>bench[i]?<div className="bench-slot" key={bench[i]}><Card card={characters[bench[i]]} hp={hp[bench[i]]} onClick={()=>switchActive(bench[i])}/><button className="sell-card" onClick={()=>sellBench(bench[i])}>💰 Sell / Remove</button></div>:<div className="empty-slot" key={i}>EMPTY</div>)}</div>
    <div className="controls"><div className="resource">🙏 PRAYERS: <b>{prayers}/10</b> • 🎴 CHARACTERS: {deck.length} • ✨ SUPPORTS: {supportDeck.length} • 🙏 PRAYER DECK: {prayerDeck.length} • 🗑️ SUPPORT DISCARD: {discard.length} • 📿 PRAYER DISCARD: {prayerDiscard.length}</div>
     {active&&active!=="GA"&&active!=="WO"&&<><button className="attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>⚔️ {characters[active].attack}<small>🙏 {characters[active].cost} • 💥 {characters[active].damage}</small></button><button className="attack second-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔥 {characters[active].secondAttack}<small>🙏 {characters[active].secondCost} • 💥 {characters[active].secondDamage}</small></button></>}{active==="WO"&&<><button className="attack blue-attack" onClick={()=>attack("basic")} disabled={turn!=="player"||!!winner}>🔵 One More Thing<small>🙏 1 • 💥 30</small></button><button className="attack blue-attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>🔵 Long Winded<small>🙏 3 • 💥 55</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner}>⭐ Last Conclusion<small>🙏 5 • 💥 72</small></button></>}{active==="GA"&&<><button className="attack" onClick={()=>attack("first")} disabled={turn!=="player"||!!winner}>⚔️ Fifteen More Minutes<small>🙏 1 • 💥 25</small></button><button className="attack" onClick={()=>attack("second")} disabled={turn!=="player"||!!winner}>⚔️ Amen Brother Jackson<small>🙏 3 • 💥 45 • ❤️ +10</small></button><button className="attack ultimate" onClick={()=>attack("ultimate")} disabled={turn!=="player"||!!winner||gaUltimateUsed}>⭐ Smile Brother Jackson<small>🙏 5 • 💥 70 • Once per battle</small></button></>}
@@ -259,5 +270,5 @@ export default function App(){
  const unlock=<main className="page"><h1>🔐 Unlock Cards</h1><p>Each Mythical card has its own code. Unlocks are saved on this device.</p><div className="unlock-box"><input value={unlockCode} onChange={e=>setUnlockCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitCode()} placeholder="Enter unlock code"/><button onClick={submitCode}>UNLOCK</button><p>{unlockMessage}</p></div><div className="mythics"><div className="mythic red">🔴 GENERAL OVERSEER<br/><small>GA • 150 HP • {unlockedGA?"UNLOCKED":"Locked"}</small></div><div className="mythic blue">🔵 WEST OVERSEER<br/><small>WO • 150 HP • {unlockedWO?"UNLOCKED":"Locked"}</small></div></div></main>;
  if(page==="practice")return practice;
  if(page==="collection"||page==="deck"||page==="unlock")return <><nav><button onClick={()=>setPage("home")}>Home</button></nav>{page==="collection"?collection:page==="deck"?deckBuilder:unlock}</>;
- return <main className="home"><div className="hero"><div className="cross">✝️</div><h1>BIBLE<br/><span>CARDS ATTACK</span></h1><p>Faith • Strategy • Chaos</p><div className="opponent-picker"><label>Opponent: </label><select value={selectedOpponent} onChange={e=>setSelectedOpponent(e.target.value)}>{Object.entries(opponents).map(([id,o])=><option key={id} value={id}>{o.icon} {o.name} — {o.ai}</option>)}</select></div><div className="home-buttons"><button className="primary" onClick={start}>⚔️ BATTLE</button><button onClick={()=>setPage("deck")}>🧰 BUILD DECK</button><button onClick={()=>setPage("collection")}>🎴 COLLECTION</button><button onClick={()=>setPage("unlock")}>🔐 UNLOCK CARDS</button></div></div><section><h2>Proof of Concept • Version 0.5</h2><p>Critical hits, unique passives, status effects, deck building, rarities, Mythical unlocks, expanded Support cards, and multiple AI opponents.</p></section></main>;
+ return <main className="home"><div className="hero"><div className="cross">✝️</div><h1>BIBLE<br/><span>CARDS ATTACK</span></h1><p>Faith • Strategy • Chaos</p><div className="opponent-picker"><label>Opponent: </label><select value={selectedOpponent} onChange={e=>setSelectedOpponent(e.target.value)}>{Object.entries(opponents).map(([id,o])=><option key={id} value={id}>{o.icon} {o.name} — {o.ai}</option>)}</select></div><div className="home-buttons"><button className="primary" onClick={start}>⚔️ BATTLE</button><button onClick={()=>setPage("deck")}>🧰 BUILD DECK</button><button onClick={()=>setPage("collection")}>🎴 COLLECTION</button><button onClick={()=>setPage("unlock")}>🔐 UNLOCK CARDS</button></div></div><section><h2>Proof of Concept • Version 0.6</h2><p>Critical hits, unique passives, status effects, deck building, rarities, Mythical unlocks, expanded Support cards, and multiple AI opponents.</p></section></main>;
 }
