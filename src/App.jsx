@@ -257,9 +257,9 @@ export default function App(){
     setHp(h=>({...h,[active]:next}));showDamage("player",damage);addLog(currentOpponent.name+" used "+currentOpponent.attack+" for "+damage+" damage."+(prevented?" Protection prevented "+prevented+"!":""));
     if(currentOpponent.ai==="Poison"){setPlayerStatus(p=>({...p,plague:2}));addLog("☠️ Venom inflicted Plague for 2 turns.");}
     if(currentOpponent.ai==="Balanced"&&Math.random()<.3){setPlayerStatus(p=>({...p,stun:1}));addLog("⚡ Legion tactics caused Stun!");}
-    if(next<=0&&active==="Jonah"&&!jonahUsed){setJonahUsed(true);setHp(h=>({...h,Jonah:15}));setPrayerDrawn(false);setCharacterDraws(0);setTurn("player");addLog("🐋 Second Chance! Jonah survives with 15 HP.");return;}
-    if(next<=0){if(bench.length){const replacement=bench[0];setBench(b=>b.slice(1));setActive(replacement);if(replacement==="Michael")setShield(10);addLog("💀 "+characters[active].name+" was defeated! "+entryLine(replacement));setPrayerDrawn(false);setCharacterDraws(0);setTurn("player");return;}setWinner(currentOpponent.name);addLog("💀 All your Characters have been defeated.");return;}
-    setPrayerDrawn(false);setCharacterDraws(0);setTurn("player");addLog(playerStatus.stun>0?"⚡ You are stunned. End your turn to recover.":"Your turn! Draw from the Prayer Deck.");
+    if(next<=0&&active==="Jonah"&&!jonahUsed){setJonahUsed(true);setHp(h=>({...h,Jonah:15}));setPrayerDrawn(false);setCharacterDraws(0);setSupportDraws(0);setTurn("player");addLog("🐋 Second Chance! Jonah survives with 15 HP.");return;}
+    if(next<=0){if(bench.length){const replacement=bench[0];setBench(b=>b.slice(1));setActive(replacement);if(replacement==="Michael")setShield(10);addLog("💀 "+characters[active].name+" was defeated! "+entryLine(replacement));setPrayerDrawn(false);setCharacterDraws(0);setSupportDraws(0);setTurn("player");return;}setWinner(currentOpponent.name);addLog("💀 All your Characters have been defeated.");return;}
+    setPrayerDrawn(false);setCharacterDraws(0);setSupportDraws(0);setTurn("player");addLog(playerStatus.stun>0?"⚡ You are stunned. End your turn to recover.":"Your turn! Draw from the Prayer Deck.");
    },650);
  };
  const endTurn=()=>{
