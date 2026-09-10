@@ -1,0 +1,48 @@
+name: Apply Bench Rule Fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: "!contains(github.event.head_commit.message, 'fix: allow bench deployment during action phase')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix battle hand deployment
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/App07.jsx')
+          s = p.read_text()
+          old = '''const selectInitialActive=n=>{if(page!=='battle'||phase!=='setup'||winner||active)return;if(!hand.includes(n))return;setActive(n);setHand(h=>h.filter(x=>x!==n));if(n==='Michael')setShield(10);setLog(l=>[lines[n],`⚔️ ${C[n].name} selected as your Active Character.`,...l].slice(0,18));};'''
+          new = '''const selectInitialActive=n=>{if(page!=='battle'||winner)return;if(phase!=='setup'){if(phase==='prepare'&&currentPlayer==='player')return deploy(n);return;}if(active||!hand.includes(n))return;setActive(n);setHand(h=>h.filter(x=>x!==n));if(n==='Michael')setShield(10);setLog(l=>[lines[n],`⚔️ ${C[n].name} selected as your Active Character.`,...l].slice(0,18));};'''
+          if old not in s:
+              raise SystemExit('Expected selectInitialActive code was not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Update rules text
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/App07.jsx')
+          s = p.read_text()
+          s = s.replace('<li>Bench deployment is free and does not end the turn.</li>', '<li>Bench deployment is free and may be done at any time during your Action Phase; it does not end the turn.</li>')
+          s = s.replace('<li>Character draws: max 2/turn. Support draws: max 2/turn.</li>', '<li>Upkeep/Draw Phase: draw 1 Prayer, up to 2 Characters, and up to 2 Supports. Drawing is restricted to Upkeep.</li>')
+          p.write_text(s)
+          PY
+
+      - name: Commit and remove fixer
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App07.jsx .github/workflows/fix-bench-rules.yml
+          git rm .github/workflows/fix-bench-rules.yml
+          git commit -m 'fix: allow bench deployment during action phase'
+          git push
