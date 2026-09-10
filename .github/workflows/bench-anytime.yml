@@ -14,20 +14,17 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p=Path('src/App07.jsx')
           s=p.read_text()
           old="""deploy=n=>{if(winner)return;if(phase==='setup')return selectInitialActive(n);if(phase!=='prepare'||currentPlayer!=='player')return;if(!active){setActive(n);setHand(h=>h.filter(x=>x!==n));setLog(l=>[lines[n],...l]);if(n==='Michael')setShield(10);return}if(bench.length>=3)return addLog('🪑 Bench is full (3/3).');setBench(b=>[...b,n]);setHand(h=>h.filter(x=>x!==n));addLog(`${C[n].name} deployed to the Bench.`)};"""
           new="""deploy=n=>{if(winner||currentPlayer!=='player'||phase==='setup')return;if(!['draw','prepare','attack'].includes(phase))return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!hand.includes(n)||bench.includes(n)||active===n)return;if(bench.length>=3)return addLog('🪑 Bench is full (3/3).');setBench(b=>[...b,n]);setHand(h=>h.filter(x=>x!==n));addLog(`🪑 ${C[n].name} deployed to the Bench.`)};"""
-          if old in s:
-              s=s.replace(old,new,1)
-          elif new not in s:
-              raise SystemExit('bench deployment block not found')
-          old=" <Card id={n} onClick={()=>selectInitialActive(n)}/>"
-          new=" <Card id={n} onClick={()=>phase==='setup'&&!active?selectInitialActive(n):deploy(n)}/>"
-          if old in s:
-              s=s.replace(old,new,1)
-          elif new not in s:
-              raise SystemExit('character hand click block not found')
+          if old in s: s=s.replace(old,new,1)
+          elif new not in s: raise SystemExit('bench deployment block not found')
+          pattern=r'<Card id=\{n\} onClick=\{\(\)=>selectInitialActive\(n\)\}/>'
+          replacement='<Card id={n} onClick={()=>phase===\'setup\'&&!active?selectInitialActive(n):deploy(n)}/>'
+          s,n=re.subn(pattern,replacement,s,count=1)
+          if n==0 and replacement not in s: raise SystemExit('character hand click block not found')
           s=s.replace('<li>Bench deployment is free and may be done at any time during your Action Phase; it does not end the turn.</li>','<li>Bench deployment is free and may be done at any point during your turn, including Upkeep. It does not count as an attack or end the turn.</li>',1)
           s=s.replace('<li>Bench deployment is free and does not end the turn.</li>','<li>Bench deployment is free and may be done at any point during your turn, including Upkeep. It does not count as an attack or end the turn.</li>',1)
           p.write_text(s)
