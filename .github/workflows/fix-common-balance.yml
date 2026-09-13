@@ -1,0 +1,34 @@
+name: Fix Common Card Balance
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix Mark first attack cost
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old="let [name,cost,dmg]=a;if(active==='WO')cost=Math.max(1,cost-1);if(prayers<cost)return addLog(`🙏 Not enough Prayer. Need ${cost}, have ${prayers}.`);"
+          new="let [name,cost,dmg]=a;if(active==='WO')cost=Math.max(1,cost-1);if(active==='Mark'&&!used.mark){cost=Math.max(0,cost-1);setUsed(u=>({...u,mark:true}));addLog('⚡ Immediately!: Mark\\'s first attack costs 1 less Prayer.')}if(prayers<cost)return addLog(`🙏 Not enough Prayer. Need ${cost}, have ${prayers}.`);"
+          if old not in s: raise SystemExit('attack cost block not found')
+          s=s.replace(old,new,1)
+          old="if(active==='Mark'&&!used.mark){cost=Math.max(0,cost-1);setUsed(u=>({...u,mark:true}));addLog('⚡ Immediately!: Mark's first attack costs 1 less Prayer.')}"
+          if old not in s: raise SystemExit('old Mark block not found')
+          s=s.replace(old,'',1)
+          p.write_text(s)
+          PY
+      - name: Commit and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx
+          git rm .github/workflows/fix-common-balance.yml
+          git commit -m "Fix Mark first attack cost check"
+          git push
