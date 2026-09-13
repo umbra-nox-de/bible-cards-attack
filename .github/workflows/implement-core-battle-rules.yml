@@ -41,12 +41,11 @@ jobs:
 
           p.write_text(s, encoding='utf-8')
 
-          # Strengthen the battle-rule module with explicit action-phase guards.
           p = Path('src/battleRules.js')
           s = p.read_text(encoding='utf-8')
-          marker = 'export function canPlaySupportDuringAction'
+          marker = 'export function canPlaySupport(state)'
           if marker not in s:
-              s += '''\n\nexport function canSwitchDuringAction(state, target) {\n  return isControllableTurn(state) && isActionPhase(state) &&\n    canSwitch(state, state.turnNo ?? 0) && state.bench?.includes(target);\n}\n\nexport function canPlaySupportDuringAction(state) {\n  return isControllableTurn(state) && isActionPhase(state) &&\n    !state?.winner && !!state?.active && state?.supportHand?.length > 0;\n}\n'''
+              s += '''\n\nexport function canPlaySupport(state) {\n  return isControllableTurn(state) && isActionPhase(state) &&\n    !state?.winner && !!state?.active && state?.supportHand?.length > 0;\n}\n'''
               p.write_text(s, encoding='utf-8')
       - name: Validate
         run: |
@@ -62,7 +61,9 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/App07.jsx src/battleRules.js .github/workflows/implement-core-battle-rules.yml
-          git diff --cached --quiet && exit 0
-          git commit -m 'feat: wire core battle action rules'
+          git add src/App07.jsx src/battleRules.js
+          git diff --cached --quiet || git commit -m 'feat: wire core battle action rules'
           git push
+          git rm .github/workflows/implement-core-battle-rules.yml || true
+          git diff --cached --quiet || git commit -m 'chore: remove temporary battle rules workflow'
+          git push || true
