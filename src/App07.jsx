@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useState} from "react";
+import {useBattleState} from "./useBattleState";
 import {BATTLE_PHASES,canDeployDuringTurn,canDrawCharacterDuringUpkeep,canDrawSupportDuringUpkeep,canDrawPrayerDuringUpkeep,canBeginAction,canAttackDuringAction,canEndTurn,beginUpkeepState,beginActionState,beginAiState,endTurnState,nextLocalPlayer} from "./battleRules";
 
 const C={
@@ -42,12 +43,8 @@ export default function App(){
  const [page,setPage]=useState('home'),[mode,setMode]=useState('ai'),[unlocked,setUnlocked]=useState(()=>loadJSON('bca-unlocked',[])),[xp,setXp]=useState(()=>Number(localStorage.getItem('bca-xp')||0)),[wins,setWins]=useState(()=>Number(localStorage.getItem('bca-wins')||0));
  const [deckList,setDeckList]=useState(()=>loadJSON('bca-deck07',starter.concat(['Solomon','Peter','Paul','Samson']).concat(supports.slice(0,8).map(s=>'S:'+s.id))));
  const [opponent,setOpponent]=useState('Pharaoh'),[room,setRoom]=useState('');
- const [active,setActive]=useState(null),[bench,setBench]=useState([]),[hand,setHand]=useState([]),[deck,setDeck]=useState([]),[supportHand,setSupportHand]=useState([]),[supportDeck,setSupportDeck]=useState([]),[discard,setDiscard]=useState([]);
- const [hp,setHp]=useState({}),[enemyHp,setEnemyHp]=useState(0),[prayers,setPrayers]=useState(0),[prayerDeck,setPrayerDeck]=useState([]),[prayerDiscard,setPrayerDiscard]=useState([]);
- const [phase,setPhase]=useState(BATTLE_PHASES.SETUP),[turnNo,setTurnNo]=useState(0),[firstPlayer,setFirstPlayer]=useState('player'),[currentPlayer,setCurrentPlayer]=useState('player');
- const [characterDraws,setCharacterDraws]=useState(0),[supportDraws,setSupportDraws]=useState(0),[prayerDrawn,setPrayerDrawn]=useState(false),[attacked,setAttacked]=useState(false),[switchCooldown,setSwitchCooldown]=useState(0),[shield,setShield]=useState(0),[nextAttackBonus,setNextAttackBonus]=useState(0);
- const [status,setStatus]=useState({burn:0,plague:0,stun:0,stunTurns:0}),[enemyStatus,setEnemyStatus]=useState({burn:0,plague:0,weaken:0}),[used,setUsed]=useState({jonah:false,gideon:false,esther:false,paul:false,peter:false,samson:false,ga:false,philip:false,mark:false,samuel:false,thomas:false,gabriel:false});
- const [winner,setWinner]=useState(null),[log,setLog]=useState([]),[detail,setDetail]=useState(null),[code,setCode]=useState(''),[codeMsg,setCodeMsg]=useState('');
+ const {state:battleState,active,setActive,bench,setBench,hand,setHand,deck,setDeck,supportHand,setSupportHand,supportDeck,setSupportDeck,discard,setDiscard,hp,setHp,enemyHp,setEnemyHp,prayers,setPrayers,prayerDeck,setPrayerDeck,prayerDiscard,setPrayerDiscard,phase,setPhase,turnNo,setTurnNo,firstPlayer,setFirstPlayer,currentPlayer,setCurrentPlayer,characterDraws,setCharacterDraws,supportDraws,setSupportDraws,prayerDrawn,setPrayerDrawn,attacked,setAttacked,switchCooldown,setSwitchCooldown,shield,setShield,nextAttackBonus,setNextAttackBonus,status,setStatus,enemyStatus,setEnemyStatus,used,setUsed,winner,setWinner,log,setLog}=useBattleState();
+ const [detail,setDetail]=useState(null),[code,setCode]=useState(''),[codeMsg,setCodeMsg]=useState('');
  const addLog=m=>setLog(x=>[m,...x].slice(0,18));
  const currentOpp=opponents[opponent];
  const saveDeck=d=>{setDeckList(d);localStorage.setItem('bca-deck07',JSON.stringify(d))};
