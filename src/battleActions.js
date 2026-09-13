@@ -96,7 +96,14 @@ export function switchCharacter(state,character){
 
 export function recordAttack(state){
   if(!canAttackDuringAction(state))return {ok:false,reason:"Attack is unavailable. Enter the Action Phase and make sure you have not already attacked."};
-  return {ok:true,state:{...state,attacked:true}};
+  return {
+    ok:true,
+    state:{
+      ...state,
+      attacked:true,
+      attacksUsed:Math.min(BATTLE_RULES.attacksPerTurn,state.attacksUsed+1)
+    }
+  };
 }
 
 export function finishTurn(state,{local=false}={}){
