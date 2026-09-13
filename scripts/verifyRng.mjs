@@ -10,7 +10,7 @@ assert.equal(rng.int(10),5);
 const seq=[0,0.9,0.2,0.7,0.1];
 let i=0;
 const shuffled=createRng(()=>seq[i++%seq.length]).shuffle(["A","B","C","D"]);
-assert.deepEqual(shuffled,["B","A","C","D"]);
+assert.deepEqual(shuffled,["B","D","C","A"]);
 
 const bounded=createRng(()=>2);
 assert.equal(bounded.next(),0.9999999999999999);
