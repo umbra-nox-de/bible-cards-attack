@@ -1,4 +1,4 @@
-import {resolveAttack,resolveEnemyDamage,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "../src/battleEngine.js";
+import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "../src/battleEngine.js";
 
 const assert=(condition,message)=>{if(!condition)throw new Error(message)};
 const card={hp:100};
@@ -39,4 +39,24 @@ assert(statusTickDamage({burn:1,plague:1})===14,"Burn + Plague should tick for 1
 assert(advanceStatus({burn:2,plague:1,stun:1,stunTurns:2,weaken:2}).burn===1,"Status duration should decrement");
 assert(advanceStatus({burn:0,plague:0,stun:0,stunTurns:0,weaken:2}).weaken===1,"Weaken duration should decrement");
 assert(applyPrayerGain(9,5)===10,"Prayer gain should respect the 10 cap");
+
+r=resolveSupport({supportId:"loaves",active:"David",used:{esther:false}});
+assert(r.ok&&r.heal===20&&r.message.startsWith("🍞 Healed 20 HP."),"Loaves should heal 20 HP");
+r=resolveSupport({supportId:"loaves",active:"Paul",used:{esther:false}});
+assert(r.heal===21,"Paul should receive 5% extra Loaves healing");
+r=resolveSupport({supportId:"armor",active:"David"});
+assert(r.shieldGain===15,"Armor of God should grant 15 Protection");
+r=resolveSupport({supportId:"temple",active:"David"});
+assert(r.prayerGain===3,"Temple of Solomon should grant 3 Prayers");
+r=resolveSupport({supportId:"manna",active:"David"});
+assert(r.heal===10&&r.prayerGain===1,"Manna should heal 10 and grant 1 Prayer");
+r=resolveSupport({supportId:"manna",active:"Paul"});
+assert(r.heal===11&&r.prayerGain===1,"Paul should receive extra Manna healing");
+r=resolveSupport({supportId:"dove",active:"David"});
+assert(r.cleanseAll,"Dove should cleanse negative statuses");
+r=resolveSupport({supportId:"commandments",active:"David"});
+assert(r.enemyWeaken===2,"Ten Commandments should apply 2-turn Weaken");
+r=resolveSupport({supportId:"redsea",active:"Esther",used:{esther:false}});
+assert(r.enemyDamage===25&&r.enemyWeaken===1&&r.prayerGain===1&&r.used.esther,"Red Sea should deal 25, Weaken, and trigger Esther");
+
 console.log("Battle engine checks passed.");
