@@ -67,13 +67,13 @@ export function useBattleState(){
     }));
   },[]);
 
+  // Actions are evaluated inside React's functional updater so the rules always
+  // receive the latest committed battle state, avoiding stale-state races.
   const dispatchBattle=useCallback((action,options={})=>{
-    let result;
     setState(previous=>{
-      result=applyAction(previous,action,options);
+      const result=applyAction(previous,action,options);
       return result.ok?result.state:previous;
     });
-    return result;
   },[]);
 
   const resetBattle=useCallback((overrides={})=>{
