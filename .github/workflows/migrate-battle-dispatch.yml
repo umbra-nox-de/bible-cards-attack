@@ -15,68 +15,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Migrate safe battle handlers
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path=Path('src/App07.jsx')
-          text=path.read_text(encoding='utf-8')
-
-          def replace_between(source, start, end, replacement, name):
-              a=source.find(start)
-              if a < 0:
-                  raise SystemExit(f'{name}: start anchor not found')
-              b=source.find(end, a + len(start))
-              if b < 0:
-                  raise SystemExit(f'{name}: end anchor not found')
-              return source[:a] + replacement + source[b:]
-
-          needle='setWinner,log,setLog}=useBattleState();'
-          if needle not in text:
-              raise SystemExit('dispatcher destructure anchor not found')
-          text=text.replace(needle,'setWinner,log,setLog,dispatchBattle}=useBattleState();',1)
-
-          text=replace_between(text,'const beginTurn=()=>{','const drawPrayer=',r'''const beginTurn=()=>{if(winner)return;dispatchBattle({type:"BEGIN_UPKEEP"});addLog(`🔔 Turn ${turnNo+1}: ${currentPlayer==='player'?'Your':currentPlayer.toUpperCase()} Upkeep.`)};
- ''','beginTurn')
-
-          text=replace_between(text,'const drawPrayer=()=>{','const beginTurn=',r'''const drawPrayer=()=>{if(!canDrawPrayerDuringUpkeep({phase,currentPlayer,prayerDrawn,winner}))return;dispatchBattle({type:"DRAW_PRAYER"});addLog(active==='Solomon'?'🙏 Prayer Draw: Solomon receives Wisdom bonus.':'🙏 Prayer Draw.')};
- ''','drawPrayer')
-
-          text=replace_between(text,'const drawSupport=()=>{','const discardChar=',r'''const drawSupport=()=>{if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;dispatchBattle({type:"DRAW_SUPPORT"});addLog(active==='Gabriel'&&supportDraws===0?'📯 Divine Message: Gabriel gained 1 Prayer.':'✨ Support Draw.')};
- ''','drawSupport')
-
-          text=replace_between(text,'const deploy=','const switchTo=',r'''const deploy=n=>{if(currentPlayer==='enemy'||winner)return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;const wasZero=prayers===0&&n==='Andrew';dispatchBattle({type:"DEPLOY_CHARACTER",character:n});addLog(`🪑 ${C[n].name} deployed to the Bench.`);if(n==='Zacchaeus')addLog('🌳 Climb Higher: Zacchaeus gained 1 Prayer.');if(wasZero)addLog('🍞 I Know a Guy: Andrew gained 1 Prayer.');if(n==='Michael')addLog('⚔️ Guardian Wing: Michael gained 10 Protection.');if(n==='Barnabas')addLog('🤝 Son of Encouragement: +5 HP to your Active Character.')};
- ''','deploy')
-
-          text=replace_between(text,'const switchTo=','const useSupport=',r'''const switchTo=n=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;if(!active)return;if(switchCooldown>0)return addLog(`🔄 Switch is on cooldown for ${switchCooldown} more turn(s).`);if(prayers<1)return addLog('🙏 Switching costs 1 Prayer.');dispatchBattle({type:"SWITCH_CHARACTER",character:n});addLog(`🔄 ${C[n].name} switched into Active.`)};
- ''','switchTo')
-
-          path.write_text(text,encoding='utf-8')
-          print('Dispatcher migration complete.')
-          PY
-
+      - name: Migrate battle handlers
+        run: python scripts/migrateBattleDispatcher.py
       - name: Install dependencies
         run: npm install
       - name: Battle tests
         run: npm run test:battle
       - name: Production build
         run: npm run build
-
       - name: Commit migration
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/App07.jsx
           if git diff --cached --quiet; then
-            echo "No App07 changes were produced."
-            exit 1
+            echo "No App07 migration changes were produced."
+            exit 0
           fi
           git commit -m "refactor: route safe battle UI actions through dispatcher"
           git push
-
-      - name: Trigger Pages deployment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy.yml --ref main
+          echo "App07 migration committed."
+      - name: Remove one-time migration workflow
+        if: success()
+        run: |
+          git rm .github/workflows/migrate-battle-dispatch.yml scripts/migrateBattleDispatcher.py
+          git commit -m "chore: remove one-time dispatcher migration tools"
+          git push
