@@ -22,5 +22,7 @@ jobs:
         run: npm install
       - name: Battle action tests
         run: npm run test:battle
+      - name: Battle engine tests
+        run: npm run test:engine
       - name: Build
         run: npm run build
