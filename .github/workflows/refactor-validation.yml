@@ -24,5 +24,7 @@ jobs:
         run: npm run test:battle
       - name: Battle engine tests
         run: npm run test:engine
+      - name: Battle RNG tests
+        run: npm run test:rng
       - name: Build
         run: npm run build
