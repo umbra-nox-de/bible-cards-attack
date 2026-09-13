@@ -1,0 +1,77 @@
+name: Apply Gabriel Roster Patch
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Michael and Gabriel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+
+          # Michael is Legendary.
+          s,n=re.subn(r'(Michael:\{[^\n]*?rarity:)"Epic"', r'\1"Legendary"', s, count=1)
+          if n != 1 and 'Michael:{name:"Michael"' not in s:
+              raise SystemExit('Michael card not found')
+
+          # Add Gabriel if missing.
+          if 'Gabriel:{name:"Gabriel"' not in s:
+              m=re.search(r'Michael:\{[^\n]*?\},\n', s)
+              if not m:
+                  raise SystemExit('Michael insertion point not found')
+              gab=' Gabriel:{name:"Gabriel",title:"The Divine Messenger",hp:130,icon:"📯",rarity:"Legendary",passive:"Divine Message — the first time each turn you draw a Support during Upkeep, gain 1 Prayer.",attacks:[[\'Trumpet of Heaven\',2,38],[\'Messenger\\\'s Judgment\',4,60]]},\n'
+              s=s[:m.end()]+gab+s[m.end():]
+
+          # Add Gabriel to the standard character roster.
+          if "'Gabriel'" not in s:
+              s=s.replace("'Moses','Michael','Elijah'", "'Moses','Michael','Gabriel','Elijah'", 1)
+
+          # Gabriel once-per-turn state.
+          if 'gabriel:false' not in s:
+              s=s.replace('thomas:false}', 'thomas:false,gabriel:false}', 1)
+
+          # Gabriel passive: first Support draw of each turn grants 1 Prayer.
+          if "Divine Message: Gabriel gained 1 Prayer" not in s:
+              old="setSupportDeck(r);setSupportHand(h=>[...h,s]);setSupportDraws(x=>x+1);addLog(`✨ Drew Support: ${s.name}.`)"
+              new="setSupportDeck(r);setSupportHand(h=>[...h,s]);setSupportDraws(x=>x+1);if(active==='Gabriel'&&!used.gabriel){setPrayers(p=>Math.min(10,p+1));setUsed(u=>({...u,gabriel:true}));addLog('📯 Divine Message: Gabriel gained 1 Prayer from the first Support draw this turn.')}addLog(`✨ Drew Support: ${s.name}.`)"
+              if old not in s:
+                  raise SystemExit('Support draw implementation not found')
+              s=s.replace(old,new,1)
+
+          # Reset Gabriel's trigger at each new turn.
+          s=s.replace('setUsed(u=>({...u,thomas:false}));setCurrentPlayer', 'setUsed(u=>({...u,thomas:false,gabriel:false}));setCurrentPlayer', 1)
+          s=s.replace('setUsed(u=>({...u,thomas:false}));setSwitchCooldown', 'setUsed(u=>({...u,thomas:false,gabriel:false}));setSwitchCooldown', 1)
+
+          # Flavor text.
+          if "Gabriel:'" not in s:
+              s=s.replace("Michael:'⚔️ Michael descends from Heaven to the battlefield.',", "Michael:'⚔️ Michael descends from Heaven to the battlefield.',Gabriel:'📯 Gabriel arrives with a message from Heaven.',", 1)
+          if "'Trumpet of Heaven':" not in s:
+              s=s.replace("'Heavenly Strike':'⚔️ Michael raises his heavenly sword.',", "'Heavenly Strike':'⚔️ Michael raises his heavenly sword.','Trumpet of Heaven':'📯 Gabriel sounds the trumpet of Heaven.','Messenger\\'s Judgment':'📯 Gabriel delivers the message with authority.',", 1)
+
+          p.write_text(s)
+          PY
+      - name: Verify build
+        run: |
+          npm install
+          npm run build
+      - name: Commit, remove patch workflow, and dispatch Pages deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx
+          git rm .github/workflows/apply-gabriel.yml
+          git commit -m "Promote Michael and add Gabriel"
+          git push
+          gh workflow run deploy.yml --repo "${GITHUB_REPOSITORY}" --ref main
