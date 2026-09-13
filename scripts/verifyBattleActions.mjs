@@ -29,13 +29,14 @@ const recycled=applyAction(createBattleState({
   active:"David",
   hand:["Jonah"],
   prayerDeck:[],
-  prayerDiscard:[{amount:3},1],
+  prayerDiscard:[{amount:3},{amount:1}],
   prayers:0
 }),{type:"DRAW_PRAYER"},{random:()=>0});
 assert.equal(recycled.ok,true);
 assert.equal(recycled.state.prayers,3);
-assert.equal(recycled.state.prayerDiscard[0].amount,1);
+assert.equal(recycled.state.prayerDiscard[0].amount,3);
 assert.equal(recycled.state.prayerDeck.length,1);
+assert.equal(recycled.state.prayerDeck[0],1);
 
 const solomonPrayer=applyAction({...base,active:"Solomon"},{type:"DRAW_PRAYER"},{random:()=>0});
 assert.equal(solomonPrayer.ok,true);
