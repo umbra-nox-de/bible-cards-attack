@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   migrate:
-    if: contains(github.event.head_commit.message, 'Add RNG migration helper') || contains(github.event.head_commit.message, 'Retry RNG migration')
+    if: contains(github.event.head_commit.message, 'Add RNG migration helper') || contains(github.event.head_commit.message, 'Retry RNG migration') || contains(github.event.head_commit.message, 'Fix RNG migration')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,11 +20,10 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p=Path('src/App07.jsx')
           s=p.read_text()
+          marker='import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";\n'
           if 'import {battleRng} from "./rng.js";' not in s:
-              marker='import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";\n'
               if marker not in s:
                   raise SystemExit('Battle engine import marker not found')
               s=s.replace(marker, marker+'import {battleRng} from "./rng.js";\n',1)
@@ -32,12 +31,19 @@ jobs:
           s=s.replace("const opener=Math.random()<.5?'player':'enemy';","const opener=battleRng.chance(.5)?'player':'enemy';")
           s=s.replace('const result=resolveAttack({active,character:C[active],attack:a,index,hp,nextAttackBonus,used});','const result=resolveAttack({active,character:C[active],attack:a,index,hp,nextAttackBonus,used,random:battleRng.next});')
           s=s.replace('const result=resolveEnemyDamage({opponent:currentOpp,enemyHp,enemyStatus});','const result=resolveEnemyDamage({opponent:currentOpp,enemyHp,enemyStatus,random:battleRng.next});')
-          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*0\\.25', 'battleRng.chance(0.25)', s)
-          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*\\.25', 'battleRng.chance(.25)', s)
-          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*0\\.5', 'battleRng.chance(0.5)', s)
-          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*\\.5', 'battleRng.chance(.5)', s)
-          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*0\\.3', 'battleRng.chance(0.3)', s)
-          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*\\.3', 'battleRng.chance(.3)', s)
+          s=s.replace("Math.random().toString(36).slice(2,8).toUpperCase()", "Array.from({length:6},()=>\"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\"[battleRng.int(36)]).join(\"\")")
+          s=s.replace('Math.random()<0.25','battleRng.chance(0.25)')
+          s=s.replace('Math.random()<.25','battleRng.chance(.25)')
+          s=s.replace('Math.random() < 0.25','battleRng.chance(0.25)')
+          s=s.replace('Math.random() < .25','battleRng.chance(.25)')
+          s=s.replace('Math.random()<0.5','battleRng.chance(0.5)')
+          s=s.replace('Math.random()<.5','battleRng.chance(.5)')
+          s=s.replace('Math.random() < 0.5','battleRng.chance(0.5)')
+          s=s.replace('Math.random() < .5','battleRng.chance(.5)')
+          s=s.replace('Math.random()<0.3','battleRng.chance(0.3)')
+          s=s.replace('Math.random()<.3','battleRng.chance(.3)')
+          s=s.replace('Math.random() < 0.3','battleRng.chance(0.3)')
+          s=s.replace('Math.random() < .3','battleRng.chance(.3)')
           leftovers=[(i+1,line) for i,line in enumerate(s.splitlines()) if 'Math.random' in line]
           if leftovers:
               raise SystemExit('Unmigrated Math.random usage: '+repr(leftovers))
