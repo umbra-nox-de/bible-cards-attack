@@ -5,7 +5,7 @@ import {BATTLE_PHASES,canDeployDuringTurn,canDrawCharacterDuringUpkeep,canDrawSu
 import {C,starter,mythic,supports,opponents,lines,attackFlavor} from "./cardData.js";
 import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";
 import {battleRng} from "./rng.js";
-import {resolveEntryPassive,resolveIncomingPassive,resolveStunPassive,resolveDamagePassive,resolveTurnEndPassive} from "./characterEffects.js";
+import {resolveEntryPassive,resolveStunPassive,resolveDamagePassive,resolveTurnEndPassive,resolveAttackTriggers} from "./characterEffects.js";
 
 function shuffle(a){return battleRng.shuffle(a)}
 function loadJSON(k,f){try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}}
@@ -75,11 +75,13 @@ const drawSupport=()=>{if(!canDrawSupportDuringUpkeep({phase,currentPlayer,suppo
   setNextAttackBonus(result.nextAttackBonus);
   setUsed(result.used);
   setEnemyHp(v=>Math.max(0,v-result.damage));
-  if(active==='Matthew'&&battleRng.chance(0.25)){gainPrayer(1);addLog('🪙 Tax Collector: Matthew collected 1 Prayer.')}
+  const attackTriggers=resolveAttackTriggers({active,random:battleRng.next});
+  if(attackTriggers.prayerGain)gainPrayer(attackTriggers.prayerGain);
+  if(attackTriggers.logs.length)attackTriggers.logs.forEach(addLog);
+  if(attackTriggers.status.plague)setEnemyStatus(e=>({...e,plague:attackTriggers.status.plague}));
+  if(attackTriggers.status.burn)setEnemyStatus(e=>({...e,burn:attackTriggers.status.burn}));
   addLog(attackFlavor[result.name]||`${C[active].name} attacks!`);
   addLog(`${C[active].name} used ${result.name} for ${result.damage}${result.crit?' 💥 CRITICAL HIT':''} damage.`);
-  if(active==='Moses')setEnemyStatus(e=>({...e,plague:2}));
-  if(active==='Elijah')setEnemyStatus(e=>({...e,burn:3}));
  };
  useEffect(()=>{if(enemyHp<=0&&page==='battle'&&!winner&&phase!==BATTLE_PHASES.SETUP){setWinner('Player');const reward=50;const nx=xp+reward;setXp(nx);setWins(w=>{const n=w+1;localStorage.setItem('bca-wins',n);return n});localStorage.setItem('bca-xp',nx);addLog(`🎉 Victory! +${reward} Faith XP.`)}},[enemyHp,phase]);
  const unlock=()=>{const map={'121GA':'GA','1980':'WO'};const n=map[code.trim().toUpperCase()];if(n&&!unlocked.includes(n)){const u=[...unlocked,n];setUnlocked(u);localStorage.setItem('bca-unlocked',JSON.stringify(u));setCodeMsg(`${C[n].name} unlocked!`)}else if(n)setCodeMsg('Already unlocked.');else setCodeMsg('Invalid Mythical code.');setCode('')};
