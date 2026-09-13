@@ -1,0 +1,65 @@
+name: Fix Turn System
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-turn-system.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch turn flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old=""" const drawPrayer=()=>{if(phase!=='draw'||winner||currentPlayer!=='player')return;if(!prayerDeck.length&&prayerDiscard.length){setPrayerDeck(shuffle(prayerDiscard.map(x=>x.amount)));setPrayerDiscard([]);return addLog('🙏 The Prayer discard was shuffled back into the Prayer Deck.')}if(!prayerDeck.length)return addLog('🙏 The Prayer Deck is empty.');const [amount,...rest]=prayerDeck;setPrayerDeck(rest);setPrayerDiscard(d=>[...d,{amount}]);let gain=amount;if(active==='Solomon'){gain+=1;addLog('📜 Wisdom: Solomon gains +1 extra Prayer.')}setPrayers(p=>Math.min(10,p+gain));setPhase('prepare');addLog(`🙏 Prayer Draw: +${gain} Prayer (${amount}${active==='Solomon'?' +1 Wisdom':''}).`)};"""
+          new=""" const drawPrayer=()=>{if(phase!=='draw'||winner||currentPlayer!=='player')return;if(!prayerDeck.length&&prayerDiscard.length){setPrayerDeck(shuffle(prayerDiscard.map(x=>x.amount)));setPrayerDiscard([]);return addLog('🙏 The Prayer discard was shuffled back into the Prayer Deck.')}if(!prayerDeck.length)return addLog('🙏 The Prayer Deck is empty.');const [amount,...rest]=prayerDeck;setPrayerDeck(rest);setPrayerDiscard(d=>[...d,{amount}]);let gain=amount;if(active==='Solomon'){gain+=1;addLog('📜 Wisdom: Solomon gains +1 extra Prayer.')}setPrayers(p=>Math.min(10,p+gain));setPrayerDrawn(true);addLog(`🙏 Prayer Draw: +${gain} Prayer (${amount}${active==='Solomon'?' +1 Wisdom':''}).`)};"""
+          if old not in s: raise SystemExit('drawPrayer block not found')
+          s=s.replace(old,new)
+          old=""" const [characterDraws,setCharacterDraws]=useState(0),[supportDraws,setSupportDraws]=useState(0),[attacked,setAttacked]=useState(false),[switchCooldown,setSwitchCooldown]=useState(0),[shield,setShield]=useState(0),[nextAttackBonus,setNextAttackBonus]=useState(0);"""
+          new=""" const [characterDraws,setCharacterDraws]=useState(0),[supportDraws,setSupportDraws]=useState(0),[prayerDrawn,setPrayerDrawn]=useState(false),[attacked,setAttacked]=useState(false),[switchCooldown,setSwitchCooldown]=useState(0),[shield,setShield]=useState(0),[nextAttackBonus,setNextAttackBonus]=useState(0);"""
+          if old not in s: raise SystemExit('state block not found')
+          s=s.replace(old,new)
+          s=s.replace("setSupportDraws(0);setAttacked(false);setSwitchCooldown(0);", "setSupportDraws(0);setPrayerDrawn(false);setAttacked(false);setSwitchCooldown(0);",1)
+          old=""" const drawChar=()=>{if(phase!=='prepare'||currentPlayer!=='player')return;"""
+          new=""" const drawChar=()=>{if(phase!=='draw'||currentPlayer!=='player')return;"""
+          if old not in s: raise SystemExit('drawChar guard not found')
+          s=s.replace(old,new)
+          old=""" const drawSupport=()=>{if(phase!=='prepare'||currentPlayer!=='player')return;"""
+          new=""" const drawSupport=()=>{if(phase!=='draw'||currentPlayer!=='player')return;"""
+          if old not in s: raise SystemExit('drawSupport guard not found')
+          s=s.replace(old,new)
+          old=""" const deploy=n=>{if(winner||currentPlayer!=='player'||phase==='setup'||phase==='ending'||phase==='ai')return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!hand.includes(n)||bench.includes(n)||active===n)return;if(bench.length>=3)return addLog('🪑 Bench is full (3/3).');setBench(b=>[...b,n]);setHand(h=>h.filter(x=>x!==n));addLog(`🪑 ${C[n].name} deployed to the Bench.`)};"""
+          new=""" const deploy=n=>{if(winner||currentPlayer!=='player'||phase==='setup'||phase==='ending'||phase==='ai')return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!hand.includes(n)||bench.includes(n)||active===n)return;if(bench.length>=3)return addLog('🪑 Bench is full (3/3).');setBench(b=>[...b,n]);setHand(h=>h.filter(x=>x!==n));addLog(`🪑 ${C[n].name} deployed to the Bench.`)};"""
+          if old not in s: raise SystemExit('deploy block not found')
+          s=s.replace(old,new)
+          old="""<button type=\"button\" disabled={phase!=='draw'||currentPlayer!=='player'} onClick={drawPrayer}>🙏 Draw Prayer</button><button type=\"button\" disabled={phase!=='prepare'||currentPlayer!=='player'} onClick={drawChar}>🎴 Draw Character</button><button type=\"button\" disabled={phase!=='prepare'||currentPlayer!=='player'} onClick={drawSupport}>✨ Draw Support</button><button type=\"button\" disabled={phase!=='prepare'||currentPlayer!=='player'||switchCooldown>0||!bench.length} onClick={()=>switchTo(bench[0])}>🔄 Switch Active</button>"""
+          new="""<button type=\"button\" disabled={phase!=='draw'||currentPlayer!=='player'||prayerDrawn} onClick={drawPrayer}>🙏 Draw Prayer</button><button type=\"button\" disabled={phase!=='draw'||currentPlayer!=='player'} onClick={drawChar}>🎴 Draw Character</button><button type=\"button\" disabled={phase!=='draw'||currentPlayer!=='player'} onClick={drawSupport}>✨ Draw Support</button><button type=\"button\" disabled={phase!=='prepare'||currentPlayer!=='player'||switchCooldown>0||!bench.length} onClick={()=>switchTo(bench[0])}>🔄 Switch Active</button><button type=\"button\" className=\"beginAction\" disabled={phase!=='draw'||currentPlayer!=='player'} onClick={()=>{setPhase('prepare');addLog('⚔️ Action Phase begins.')}}>▶️ Begin Action Phase</button>"""
+          if old not in s: raise SystemExit('controls block not found')
+          s=s.replace(old,new)
+          old="""setCurrentPlayer('player');setPhase('draw');setCharacterDraws(0);setSupportDraws(0);setAttacked(false);setSwitchCooldown(c=>Math.max(0,c-1));addLog('🔔 Your Draw Phase begins.')"""
+          new="""setCurrentPlayer('player');setPhase('draw');setCharacterDraws(0);setSupportDraws(0);setPrayerDrawn(false);setAttacked(false);setSwitchCooldown(c=>Math.max(0,c-1));addLog('🔔 Your Upkeep begins.')"""
+          if old not in s: raise SystemExit('enemy reset block not found')
+          s=s.replace(old,new)
+          old="""<div className=\"controls\">"""
+          new="""<div className=\"phaseHint\">{phase==='draw'?'🙏 UPKEEP — Draw 1 Prayer, up to 2 Characters, and up to 2 Supports. Bench deployment is allowed throughout your turn.':phase==='prepare'?'⚔️ ACTION PHASE — Attack, use Supports, switch, or deploy Characters to your Bench.':''}</div><div className=\"controls\">"""
+          if old not in s: raise SystemExit('controls container not found')
+          s=s.replace(old,new,1)
+          old="""<li>Upkeep/Draw Phase: draw 1 Prayer, up to 2 Characters, and up to 2 Supports. Drawing is restricted to Upkeep.</li>"""
+          new="""<li>Upkeep/Draw Phase: draw 1 Prayer, up to 2 Characters, and up to 2 Supports. Drawing is restricted to Upkeep; then begin the Action Phase manually.</li>"""
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+      - name: Remove patch workflow
+        run: rm .github/workflows/fix-turn-system.yml
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App07.jsx .github/workflows/fix-turn-system.yml
+          git commit -m 'Fix upkeep and action phase turn flow'
+          git push
