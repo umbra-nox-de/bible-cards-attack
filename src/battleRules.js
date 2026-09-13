@@ -1,5 +1,5 @@
 // Core battle rules for Bible Cards Attack.
-// Prayer generation/economy is intentionally NOT defined here.
+// Battle actions should use these values instead of scattering gameplay limits.
 
 export const BATTLE_RULES = Object.freeze({
   startingCharacters: 3,
@@ -11,7 +11,8 @@ export const BATTLE_RULES = Object.freeze({
   supportDrawLimit: 2,
   attacksPerTurn: 1,
   switchPrayerCost: 1,
-  switchCooldownTurns: 2
+  switchCooldownTurns: 2,
+  prayerCap: 10
 });
 
 export const BATTLE_PHASES = Object.freeze({
