@@ -11,9 +11,9 @@ import {
   beginUpkeepState,
   beginActionState,
   endTurnState
-} from "./battleRules";
+} from "./battleRules.js";
 
-const clampPrayer=value=>Math.max(0,Math.min(BATTLE_RULES.prayerCap,value));
+const clampPrayer=value=>Math.max(0,Math.min(BATTLE_RULES.prayerCap??10,value));
 
 function recyclePrayerDeck(state,random=Math.random){
   if(state.prayerDeck.length>0||state.prayerDiscard.length===0)return state;
@@ -52,9 +52,7 @@ export function drawPrayer(state,random=Math.random){
 
 export function drawCharacter(state,random=Math.random){
   if(!canDrawCharacterDuringUpkeep(state))return {ok:false,reason:"Character draws are only available during Upkeep, with an open hand slot."};
-  const eligible=state.deck.filter(card=>
-    !state.hand.includes(card)&&card!==state.active&&!state.bench.includes(card)
-  );
+  const eligible=state.deck.filter(card=>!state.hand.includes(card)&&card!==state.active&&!state.bench.includes(card));
   if(eligible.length===0)return {ok:false,reason:"No unique Character is available to draw."};
   const index=Math.floor(random()*eligible.length);
   const card=eligible[Math.max(0,Math.min(index,eligible.length-1))];
