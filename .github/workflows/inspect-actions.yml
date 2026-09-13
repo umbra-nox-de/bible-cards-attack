@@ -33,3 +33,5 @@ jobs:
               if any(s in line for s in ['setActive(','setBench(','setHand(','setDeck(','setSupportHand(','setSupportDeck(','setPrayers(','setPhase(','setTurnNo(','setCurrentPlayer(','setCharacterDraws(','setSupportDraws(','setPrayerDrawn(','setAttacked(','setShield(','setNextAttackBonus(','setStatus(','setEnemyStatus(','setWinner(']):
                   print(f'{line_no}: {line[:260]}')
           PY
+
+# inspection-only workflow; no source changes
