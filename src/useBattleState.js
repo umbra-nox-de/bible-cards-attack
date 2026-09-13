@@ -1,6 +1,7 @@
 import {useState} from "react";
 import {BATTLE_PHASES} from "./battleRules";
 
+// Phase 1.3: all battle-owned state is stored in one React state container.
 const INITIAL_BATTLE_STATE=Object.freeze({
   active:null,
   bench:[],
