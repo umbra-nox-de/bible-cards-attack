@@ -1,0 +1,50 @@
+name: Phase 2.1 Card Data Extraction
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  extract-test-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract battle data
+        run: python scripts/extractBattleDataPhase21.py
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Battle action tests
+        run: npm run test:battle
+
+      - name: Commit verified extraction and remove migration tooling
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/phase2-card-data.yml scripts/extractBattleDataPhase21.py
+          git add src/App07.jsx src/cardData.js
+          git diff --cached --quiet && { echo "No Phase 2.1 changes detected."; exit 1; } || true
+          git commit -m "refactor: extract battle card data from App07"
+          git push
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
