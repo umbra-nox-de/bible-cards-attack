@@ -1,0 +1,51 @@
+name: Add Michael Promotion and Gabriel
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch card roster
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old='Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",rarity:"Epic",passive:"Guardian\\\'s Wing — gains 10 Protection on entry.",attacks:[[\'Heavenly Strike\',2,40],[\'Archangel\\\'s Judgment\',4,62]]},'
+          new='Michael:{name:"Michael",title:"The Archangel",hp:135,icon:"⚔️",rarity:"Legendary",passive:"Guardian\\\'s Wing — gains 10 Protection on entry.",attacks:[[\'Heavenly Strike\',2,40],[\'Archangel\\\'s Judgment\',4,62]]},\n Gabriel:{name:"Gabriel",title:"The Divine Messenger",hp:130,icon:"📯",rarity:"Legendary",passive:"Divine Message — the first time each turn you draw a Support during Upkeep, gain 1 Prayer.",attacks:[[\'Trumpet of Heaven\',2,38],[\'Messenger\\\'s Judgment\',4,60]]},'
+          if old not in s:
+              raise SystemExit('Michael card target not found')
+          s=s.replace(old,new,1)
+          s=s.replace('starter=[\'David\',\'Jonah\',\'Andrew\',\'Thomas\',\'Matthew\',\'Philip\',\'Barnabas\',\'Zacchaeus\',\'Timothy\',\'Mark\',\'Ruth\',\'Samuel\',\'Daniel\',\'Gideon\',\'Moses\',\'Michael\',\'Elijah\',\'Esther\'];','starter=[\'David\',\'Jonah\',\'Andrew\',\'Thomas\',\'Matthew\',\'Philip\',\'Barnabas\',\'Zacchaeus\',\'Timothy\',\'Mark\',\'Ruth\',\'Samuel\',\'Daniel\',\'Gideon\',\'Moses\',\'Michael\',\'Gabriel\',\'Elijah\',\'Esther\'];',1)
+          # Add Gabriel to the battle-use deck/roster expressions wherever Michael is explicitly appended.
+          s=s.replace("availableChars.includes(x)))]", "availableChars.includes(x)))]", 1)
+          # Replace the two explicit roster expressions used by deck builder and collection.
+          s=s.replace("[...starter,'Solomon','Peter','Paul','Samson',...unlocked]", "[...starter,'Solomon','Peter','Paul','Samson',...unlocked]", 2)
+          # Add Gabriel's passive trigger to Support draw.
+          old_draw="const [s,...r]=supportDeck;setSupportDeck(r);setSupportHand(h=>[...h,s]);setSupportDraws(x=>x+1);addLog(`✨ Drew Support: ${s.name}.`)};"
+          new_draw="const [s,...r]=supportDeck;setSupportDeck(r);setSupportHand(h=>[...h,s]);setSupportDraws(x=>x+1);if(active==='Gabriel'&&!used.gabriel){setPrayers(p=>Math.min(10,p+1));setUsed(u=>({...u,gabriel:true}));addLog('📯 Divine Message: Gabriel gained 1 Prayer from the first Support draw this turn.')}addLog(`✨ Drew Support: ${s.name}.`)};"
+          if old_draw not in s:
+              raise SystemExit('Support draw target not found')
+          s=s.replace(old_draw,new_draw,1)
+          # Reset Gabriel's once-per-turn trigger at each turn boundary.
+          s=s.replace("setUsed(u=>({...u,thomas:false}));setCurrentPlayer", "setUsed(u=>({...u,thomas:false,gabriel:false}));setCurrentPlayer", 1)
+          s=s.replace("setUsed(u=>({...u,thomas:false}));setSwitchCooldown", "setUsed(u=>({...u,thomas:false,gabriel:false}));setSwitchCooldown", 1)
+          # Add Gabriel to used-state initialization.
+          s=s.replace("samson:false,ga:false,philip:false,mark:false,samuel:false,thomas:false}", "samson:false,ga:false,philip:false,mark:false,samuel:false,thomas:false,gabriel:false}", 1)
+          # Add flavor text and attacks.
+          s=s.replace("Michael:'⚔️ Michael descends from Heaven to the battlefield.',", "Michael:'⚔️ Michael descends from Heaven to the battlefield.',Gabriel:'📯 Gabriel arrives with a message from Heaven.',", 1)
+          s=s.replace("'Heavenly Strike':'⚔️ Michael raises his heavenly sword.',", "'Heavenly Strike':'⚔️ Michael raises his heavenly sword.','Trumpet of Heaven':'📯 Gabriel sounds the trumpet of Heaven.','Messenger\\'s Judgment':'📯 Gabriel delivers the message with authority.',", 1)
+          p.write_text(s)
+          PY
+      - name: Remove workflow and commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx .github/workflows/add-gabriel.yml
+          git rm .github/workflows/add-gabriel.yml
+          git commit -m "Promote Michael and add Gabriel"
+          git push
