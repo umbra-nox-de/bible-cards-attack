@@ -1,0 +1,41 @@
+name: Add Attack Prayer Display
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch attack prayer display
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old='<h3>⚔️ Attacks — spend Prayer</h3>'
+          new='<h3>⚔️ Attacks — spend Prayer <span className="attackPrayer">🙏 {prayers}/10 Prayer</span></h3>'
+          if old not in s:
+              raise SystemExit('Attack heading not found')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('src/update07.css')
+          s=p.read_text()
+          marker='.benchButton{'
+          css='.attackPrayer{display:inline-block;margin-left:10px;padding:5px 10px;border:1px solid #8e6b32;border-radius:8px;background:#211711;font-size:.8rem;color:#ffe1a1;vertical-align:middle}.attackPrayer{font-weight:bold}\n\n'
+          if '.attackPrayer{' not in s:
+              if marker not in s:
+                  raise SystemExit('CSS marker not found')
+              s=s.replace(marker,css+marker,1)
+              p.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App07.jsx src/update07.css .github/workflows/add-attack-prayer-display.yml
+          git rm .github/workflows/add-attack-prayer-display.yml
+          git commit -m 'feat: show prayer total beside attacks' || exit 0
+          git push
