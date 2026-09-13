@@ -37,16 +37,21 @@ export function drawPrayer(state,random=Math.random){
   const next=recyclePrayerDeck(state,random);
   if(next.prayerDeck.length===0)return {ok:false,reason:"No Prayer cards are available."};
   const [amount,...rest]=next.prayerDeck;
-  const prayerAmount=Number(amount)||0;
+  const baseGain=Number(amount)||0;
+  const wisdomBonus=state.active==="Solomon"?1:0;
+  const gain=baseGain+wisdomBonus;
   return {
     ok:true,
     state:{
       ...next,
       prayerDeck:rest,
-      prayers:clampPrayer(next.prayers+prayerAmount),
-      prayerDiscard:[...next.prayerDiscard,amount],
+      prayers:clampPrayer(next.prayers+gain),
+      prayerDiscard:[...next.prayerDiscard,{amount}],
       prayerDrawn:true
-    }
+    },
+    amount,
+    gain,
+    wisdomBonus
   };
 }
 
@@ -73,21 +78,41 @@ export function drawSupport(state,random=Math.random){
   if(state.supportDeck.length===0)return {ok:false,reason:"No Support cards remain in the deck."};
   const index=Math.floor(random()*state.supportDeck.length);
   const card=state.supportDeck[Math.max(0,Math.min(index,state.supportDeck.length-1))];
+  const gabrielBonus=state.active==="Gabriel"&&state.supportDraws===0?1:0;
   return {
     ok:true,
     state:{
       ...state,
       supportHand:[...state.supportHand,card],
       supportDeck:state.supportDeck.filter((_,i)=>i!==index),
-      supportDraws:state.supportDraws+1
+      supportDraws:state.supportDraws+1,
+      prayers:clampPrayer(state.prayers+gabrielBonus)
     },
-    card
+    card,
+    gabrielBonus
   };
 }
 
 export function deployCharacter(state,character){
   if(!canDeployDuringTurn(state,character))return {ok:false,reason:"Character cannot be deployed to the Bench right now."};
-  return deployToBench(state,character);
+  const deployed=deployToBench(state,character);
+  if(!deployed.ok)return deployed;
+  let next=deployed.state;
+  const entryLogs=[];
+  if(character==="Andrew"&&next.prayers===0){
+    next={...next,prayers:clampPrayer(next.prayers+1)};
+    entryLogs.push("🍞 I Know a Guy: Andrew gained 1 Prayer.");
+  }
+  if(character==="Zacchaeus"){
+    next={...next,prayers:clampPrayer(next.prayers+1)};
+    entryLogs.push("🌳 Climb Higher: Zacchaeus gained 1 Prayer.");
+  }
+  if(character==="Michael")next={...next,shield:10};
+  if(character==="Barnabas"&&next.active){
+    next={...next,hp:{...next.hp,[next.active]:Math.min(next.active&&next.hp?.[next.active]!=null?next.active&&999:999,(next.hp?.[next.active]??0)+5)}};
+    entryLogs.push("🤝 Son of Encouragement: +5 HP to your Active Character.");
+  }
+  return {ok:true,state:next,entryLogs};
 }
 
 export function switchCharacter(state,character){
@@ -96,14 +121,7 @@ export function switchCharacter(state,character){
 
 export function recordAttack(state){
   if(!canAttackDuringAction(state))return {ok:false,reason:"Attack is unavailable. Enter the Action Phase and make sure you have not already attacked."};
-  return {
-    ok:true,
-    state:{
-      ...state,
-      attacked:true,
-      attacksUsed:Math.min(BATTLE_RULES.attacksPerTurn,state.attacksUsed+1)
-    }
-  };
+  return {ok:true,state:{...state,attacked:true,attacksUsed:Math.min(BATTLE_RULES.attacksPerTurn,state.attacksUsed+1)}};
 }
 
 export function finishTurn(state,{local=false}={}){
