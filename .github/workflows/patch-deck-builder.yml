@@ -1,0 +1,44 @@
+name: Patch Deck Builder Layout
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/patch-deck-builder.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch deck builder JSX and CSS
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old='''<div className="grid2">{[...starter,'Solomon','Peter','Paul','Samson',...unlocked].map(id=><Card key={id} id={id} onClick={()=>addCard(id)}/>)}</div><h3>Supports</h3><div className="grid2">{supports.map(s=><button type="button" className="support" key={s.id} onClick={()=>addCard('S:'+s.id)}>{s.icon} <b>{s.name}</b><small>{s.text}</small></button>)}</div>'''
+          new='''<div className="deckRarityGroups">{['Common','Uncommon','Rare','Epic','Legendary','Mythic'].map(r=>{const ids=[...starter,'Solomon','Peter','Paul','Samson',...unlocked].filter((id,i,a)=>a.indexOf(id)===i&&C[id]&&C[id].rarity===r);return ids.length?<section className="deckRarity" key={r}><h3>◆ {r}</h3><div className="deckGrid3">{ids.map(id=><Card key={id} id={id} onClick={()=>addCard(id)}/>)}</div></section>:null})}</div><h3>Supports</h3><div className="deckGrid3">{supports.map(s=><button type="button" className="support" key={s.id} onClick={()=>addCard('S:'+s.id)}>{s.icon} <b>{s.name}</b><small>{s.text}</small></button>)}</div>'''
+          if old not in s:
+              raise SystemExit('Deck builder block not found')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('src/styles.css')
+          s=p.read_text()
+          css='''\n/* Deck Builder: three cards per row, grouped by rarity */\n.deckRarityGroups{display:flex;flex-direction:column;gap:22px}.deckRarity{border:1px solid #604b32;border-radius:16px;padding:14px;background:#1c130e}.deckRarity>h3{margin:0 0 12px;text-align:center;color:#e6c56f}.deckGrid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}.deckGrid3 .card{width:100%;max-width:none}.deckGrid3 .support{width:100%;min-height:120px}.deckGrid3 .card,.deckGrid3 .support{margin:0}@media(max-width:760px){.deckGrid3{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.deckGrid3 .card{min-height:205px;padding:7px}.deckGrid3 .card .art{height:70px;font-size:3rem}.deckGrid3 .card b{font-size:.9rem}.deckGrid3 .card small{font-size:.65rem}.deckGrid3 .card p{font-size:.6rem}.deckGrid3 .support{padding:9px 7px;font-size:.8rem}}@media(max-width:520px){.deckGrid3{gap:5px}.deckGrid3 .card{min-height:180px}.deckGrid3 .card .art{height:58px;font-size:2.3rem}.deckGrid3 .card b{font-size:.78rem}.deckGrid3 .card span,.deckGrid3 .card small,.deckGrid3 .card p{font-size:.55rem}.deckGrid3 .card strong{font-size:.7rem}}\n'''
+          if '/* Deck Builder: three cards per row' not in s:
+              p.write_text(s+css)
+          PY
+      - name: Build check
+        run: |
+          npm install
+          npm run build
+      - name: Remove patch workflow
+        run: |
+          rm .github/workflows/patch-deck-builder.yml
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App07.jsx src/styles.css .github/workflows/patch-deck-builder.yml
+          git commit -m 'Organize deck builder into three-card rarity rows'
+          git push
