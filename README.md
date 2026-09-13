@@ -23,3 +23,4 @@ Built as a proof of concept for a youth class.
 
 ## Deployment
 This project deploys automatically to GitHub Pages when `main` is updated.
+
