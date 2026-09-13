@@ -65,9 +65,11 @@ assert.equal(deployed.ok,true);
 assert.equal(deployed.state.hand.includes("Jonah"),false);
 assert.equal(deployed.state.bench.includes("Jonah"),true);
 
-const barnabas=applyAction({...base,active:"David",hp:{David:100,Jonah:115}},{type:"DEPLOY_CHARACTER",character:"Barnabas"});
+const barnabas=applyAction({...base,hand:["Barnabas"],active:"David",hp:{David:100,Jonah:115}},{type:"DEPLOY_CHARACTER",character:"Barnabas"});
 assert.equal(barnabas.ok,true);
 assert.equal(barnabas.state.hp.David,105);
+assert.equal(barnabas.state.hand.includes("Barnabas"),false);
+assert.equal(barnabas.state.bench.includes("Barnabas"),true);
 
 const blockedDeploy=applyAction({...base,phase:BATTLE_PHASES.SETUP},{type:"DEPLOY_CHARACTER",character:"Jonah"});
 assert.equal(blockedDeploy.ok,false);
