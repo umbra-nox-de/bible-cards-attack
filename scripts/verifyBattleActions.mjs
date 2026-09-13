@@ -60,6 +60,13 @@ assert.equal(gabrielSupport.ok,true);
 assert.equal(gabrielSupport.state.prayers,1);
 assert.equal(gabrielSupport.gabrielBonus,1);
 
+const consumedSupport=applyAction({...base,phase:BATTLE_PHASES.ACTION},{type:"USE_SUPPORT",support:"armor"});
+assert.equal(consumedSupport.ok,true);
+assert.equal(consumedSupport.state.supportHand.includes("armor"),false);
+assert.equal(consumedSupport.state.discard.at(-1).type,"support");
+assert.equal(applyAction(consumedSupport.state,{type:"USE_SUPPORT",support:"armor"}).ok,false);
+assert.equal(applyAction({...base,phase:BATTLE_PHASES.UPKEEP},{type:"USE_SUPPORT",support:"armor"}).ok,false);
+
 const deployed=applyAction(base,{type:"DEPLOY_CHARACTER",character:"Jonah"});
 assert.equal(deployed.ok,true);
 assert.equal(deployed.state.hand.includes("Jonah"),false);
