@@ -1,6 +1,8 @@
 name: Migrate Battle UI To Dispatcher
 
 on:
+  push:
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -23,11 +25,6 @@ jobs:
           path=Path('src/App07.jsx')
           text=path.read_text(encoding='utf-8')
 
-          old_import='from "./battleRules";'
-          new_import='from "./battleRules";'
-          if old_import not in text:
-              raise SystemExit('battleRules import anchor not found')
-
           needle='setWinner,log,setLog}=useBattleState();'
           replacement='setWinner,log,setLog,dispatchBattle}=useBattleState();'
           if needle not in text:
@@ -35,7 +32,7 @@ jobs:
           text=text.replace(needle,replacement,1)
 
           begin_pattern=r' const beginTurn=\(\)=>\{.*?\};\n'
-          begin_replacement=' const beginTurn=()=>{if(winner)return;const result=dispatchBattle({type:"BEGIN_UPKEEP"});addLog(`🔔 Turn ${turnNo+1}: ${currentPlayer===\'player\'?\'Your\':currentPlayer.toUpperCase()} Upkeep.`)};\n'
+          begin_replacement=' const beginTurn=()=>{if(winner)return;dispatchBattle({type:"BEGIN_UPKEEP"});addLog(`🔔 Turn ${turnNo+1}: ${currentPlayer===\'player\'?\'Your\':currentPlayer.toUpperCase()} Upkeep.`)};\n'
           text,n=re.subn(begin_pattern,begin_replacement,text,count=1,flags=re.S)
           if n!=1: raise SystemExit(f'beginTurn replacement count={n}')
 
@@ -50,9 +47,7 @@ jobs:
           if n!=1: raise SystemExit(f'drawSupport replacement count={n}')
 
           deploy_pattern=r' const deploy=\(n\)=>\{.*?\};\n const switchTo='
-          deploy_replacement=' const deploy=n=>{if(currentPlayer===\'enemy\'||winner)return;if(!active)return addLog(\'⚔️ Choose an Active Character first.\');if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;const wasZero=prayers===0&&n===\'Andrew\';dispatchBattle({type:"DEPLOY_CHARACTER",character:n});addLog(`🪑 ${C[n].name} deployed to the Bench.`);if(n===\'Zacchaeus\')addLog(\'🌳 Climb Higher: Zacchaeus gained 1 Prayer.\');if(wasZero)addLog(\'🍞 I Know a Guy: Andrew gained 1 Prayer.\');if(n===\'Michael\')addLog(\'⚔️ Guardian\'s Wing: Michael gained 10 Protection.\');if(n===\'Barnabas\')addLog(\'🤝 Son of Encouragement: +5 HP to your Active Character.\')};\n const switchTo='
-          # Escape the apostrophe in the generated JS string.
-          deploy_replacement=deploy_replacement.replace("Guardian\\'s","Guardian\\\\'s")
+          deploy_replacement=" const deploy=n=>{if(currentPlayer==='enemy'||winner)return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;const wasZero=prayers===0&&n==='Andrew';dispatchBattle({type:\"DEPLOY_CHARACTER\",character:n});addLog(`🪑 ${C[n].name} deployed to the Bench.`);if(n==='Zacchaeus')addLog('🌳 Climb Higher: Zacchaeus gained 1 Prayer.');if(wasZero)addLog('🍞 I Know a Guy: Andrew gained 1 Prayer.');if(n==='Michael')addLog(\"⚔️ Guardian's Wing: Michael gained 10 Protection.\");if(n==='Barnabas')addLog('🤝 Son of Encouragement: +5 HP to your Active Character.')};\n const switchTo="
           text,n=re.subn(deploy_pattern,deploy_replacement,text,count=1,flags=re.S)
           if n!=1: raise SystemExit(f'deploy replacement count={n}')
 
@@ -62,17 +57,7 @@ jobs:
           if n!=1: raise SystemExit(f'switchTo replacement count={n}')
 
           path.write_text(text,encoding='utf-8')
-          print('Migration completed.')
           PY
-
-      - name: Verify source anchors
-        run: |
-          grep -q 'dispatchBattle' src/App07.jsx
-          grep -q 'type:"BEGIN_UPKEEP"' src/App07.jsx
-          grep -q 'type:"DRAW_PRAYER"' src/App07.jsx
-          grep -q 'type:"DRAW_SUPPORT"' src/App07.jsx
-          grep -q 'type:"DEPLOY_CHARACTER"' src/App07.jsx
-          grep -q 'type:"SWITCH_CHARACTER"' src/App07.jsx
 
       - name: Install dependencies
         run: npm install
@@ -86,6 +71,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/App07.jsx
+          git diff --cached --exit-code && exit 0 || true
           git commit -m "refactor: route safe battle UI actions through dispatcher"
           git push
 
@@ -94,7 +80,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy.yml --ref main
 
-      - name: Remove migration workflow
+      - name: Remove one-time migration workflow
         run: |
           git rm .github/workflows/migrate-battle-dispatch.yml
           git commit -m "chore: remove one-time battle migration workflow"
