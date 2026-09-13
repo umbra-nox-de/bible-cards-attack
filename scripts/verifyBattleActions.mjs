@@ -20,7 +20,27 @@ const drawPrayer=applyAction(base,{type:"DRAW_PRAYER"},{random:()=>0});
 assert.equal(drawPrayer.ok,true);
 assert.equal(drawPrayer.state.prayers,2);
 assert.equal(drawPrayer.state.prayerDrawn,true);
+assert.equal(drawPrayer.state.prayerDiscard[0].amount,2);
 assert.equal(applyAction(drawPrayer.state,{type:"DRAW_PRAYER"}).ok,false);
+
+const recycled=applyAction(createBattleState({
+  phase:BATTLE_PHASES.UPKEEP,
+  currentPlayer:"player",
+  active:"David",
+  hand:["Jonah"],
+  prayerDeck:[],
+  prayerDiscard:[{amount:3},1],
+  prayers:0
+}),{type:"DRAW_PRAYER"},{random:()=>0});
+assert.equal(recycled.ok,true);
+assert.equal(recycled.state.prayers,3);
+assert.equal(recycled.state.prayerDiscard[0].amount,1);
+assert.equal(recycled.state.prayerDeck.length,1);
+
+const solomonPrayer=applyAction({...base,active:"Solomon"},{type:"DRAW_PRAYER"},{random:()=>0});
+assert.equal(solomonPrayer.ok,true);
+assert.equal(solomonPrayer.state.prayers,3);
+assert.equal(solomonPrayer.wisdomBonus,1);
 
 const drawCharacter=applyAction(base,{type:"DRAW_CHARACTER"},{random:()=>0});
 assert.equal(drawCharacter.ok,true);
@@ -34,10 +54,19 @@ assert.equal(drawSupport.ok,true);
 assert.equal(drawSupport.card,"prayer");
 assert.equal(drawSupport.state.supportDraws,1);
 
+const gabrielSupport=applyAction({...base,active:"Gabriel"},{type:"DRAW_SUPPORT"},{random:()=>0});
+assert.equal(gabrielSupport.ok,true);
+assert.equal(gabrielSupport.state.prayers,1);
+assert.equal(gabrielSupport.gabrielBonus,1);
+
 const deployed=applyAction(base,{type:"DEPLOY_CHARACTER",character:"Jonah"});
 assert.equal(deployed.ok,true);
 assert.equal(deployed.state.hand.includes("Jonah"),false);
 assert.equal(deployed.state.bench.includes("Jonah"),true);
+
+const barnabas=applyAction({...base,active:"David",hp:{David:100,Jonah:115}},{type:"DEPLOY_CHARACTER",character:"Barnabas"});
+assert.equal(barnabas.ok,true);
+assert.equal(barnabas.state.hp.David,105);
 
 const blockedDeploy=applyAction({...base,phase:BATTLE_PHASES.SETUP},{type:"DEPLOY_CHARACTER",character:"Jonah"});
 assert.equal(blockedDeploy.ok,false);
@@ -67,5 +96,6 @@ assert.equal(switched.ok,true);
 assert.equal(switched.state.active,"Jonah");
 assert.equal(switched.state.prayers,0);
 assert.equal(switched.state.bench.includes("David"),true);
+assert.equal(switched.state.switchCooldown,BATTLE_RULES.switchCooldownTurns);
 
 console.log("Battle action checks passed.");
