@@ -1,0 +1,71 @@
+name: Add Common Card Expansion
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch common cards and mechanics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old=''' David:{name:"David",title:"The Giant Slayer",hp:120,icon:"🪨",rarity:"Common",passive:"Faithful Aim — 25% critical chance.",attacks:[['Sling Shot',2,40],['Five Smooth Stones',4,60]]},\n Jonah:{name:"Jonah",title:"The Reluctant Prophet",hp:110,icon:"🐋",rarity:"Common",passive:"Second Chance — once per battle, survives defeat at 15 HP.",attacks:[['Whale Encounter',2,35],['Nineveh Sprint',3,50]]},'''
+          new=old+'''\n Andrew:{name:"Andrew",title:"The One Who Brings",hp:105,icon:"🍞",rarity:"Common",passive:"I Know a Guy — when Andrew enters play, gain 1 Prayer if you have 0.",attacks:[['Bring Them Here',1,20],['Five Loaves, Two Fish',2,35]]},\n Thomas:{name:"Thomas",title:"The Doubting Disciple",hp:110,icon:"🤔",rarity:"Common",passive:"Show Me — the first time Thomas takes damage each turn, his next attack gains +10 damage.",attacks:[['Are You Sure?',1,20],['Now I Believe',3,45]]},\n Matthew:{name:"Matthew",title:"The Former Tax Collector",hp:105,icon:"🪙",rarity:"Common",passive:"Tax Collector — attacks have a 25% chance to gain 1 Prayer.",attacks:[['Collect the Due',1,20],['Interest Included',2,35]]},\n Philip:{name:"Philip",title:"The Question Asker",hp:100,icon:"❓",rarity:"Common",passive:"Where Do We Buy Bread? — once per battle below half HP, draw 1 Character if possible.",attacks:[['Can We Find Enough?',1,20],['Follow Me',2,30]]},\n Barnabas:{name:"Barnabas",title:"The Encourager",hp:115,icon:"🤝",rarity:"Common",passive:"Son of Encouragement — when a Character enters your Bench, heal your Active 5 HP.",attacks:[['Cheer Them On',1,20],['Keep Going!',2,30]]},\n Zacchaeus:{name:"Zacchaeus",title:"The Short Collector",hp:95,icon:"🌳",rarity:"Common",passive:"Climb Higher — when Zacchaeus enters play, gain 1 Prayer.",attacks:[['Tax Return',1,25],['Come Down From There',2,40]]},\n Timothy:{name:"Timothy",title:"The Young Disciple",hp:100,icon:"📖",rarity:"Common",passive:"Let No One Despise You — below half HP, deals 15% more damage.",attacks:[['Set an Example',1,20],['Fight the Good Fight',3,45]]},\n Mark:{name:"Mark",title:"The Fast Messenger",hp:100,icon:"⚡",rarity:"Common",passive:"Immediately! — Mark's first attack each battle costs 1 less Prayer.",attacks:[['Immediately!',1,20],['Good News',2,35]]},\n Ruth:{name:"Ruth",title:"The Loyal Daughter",hp:110,icon:"🌾",rarity:"Common",passive:"Where You Go — while Ruth is on the Bench, your Active takes 10% less damage.",attacks:[['Stay With Me',1,20],['Gleaning the Fields',2,30]]},\n Samuel:{name:"Samuel",title:"The Listening Prophet",hp:105,icon:"👂",rarity:"Common",passive:"Speak, Lord — the first Stun each battle is ignored.",attacks:[['Here I Am',1,20],['Thus Says the Lord',3,40]]},'''
+          if old not in s: raise SystemExit('card block not found')
+          s=s.replace(old,new,1)
+          s=s.replace("const starter=['David','Jonah','Daniel','Gideon','Moses','Michael','Elijah','Esther'];","const starter=['David','Jonah','Andrew','Thomas','Matthew','Philip','Barnabas','Zacchaeus','Timothy','Mark','Ruth','Samuel','Daniel','Gideon','Moses','Michael','Elijah','Esther'];",1)
+          s=s.replace("const [used,setUsed]=useState({jonah:false,gideon:false,esther:false,paul:false,peter:false,samson:false,ga:false});","const [used,setUsed]=useState({jonah:false,gideon:false,esther:false,paul:false,peter:false,samson:false,ga:false,philip:false,mark:false,samuel:false,thomas:false});",1)
+          s=s.replace("setUsed({jonah:false,gideon:false,esther:false,paul:false,peter:false,samson:false,ga:false});","setUsed({jonah:false,gideon:false,esther:false,paul:false,peter:false,samson:false,ga:false,philip:false,mark:false,samuel:false,thomas:false});",1)
+          s=s.replace("const lines={David:'🪨 David steps forward with faith unshaken.'","const lines={Andrew:'🍞 Andrew arrives with something to bring.',Thomas:'🤔 Thomas remains unconvinced.',Matthew:'🪙 Matthew has calculated the odds.',Philip:'❓ Philip has several questions.',Barnabas:'🤝 Barnabas arrives ready to encourage everyone.',Zacchaeus:'🌳 Zacchaeus climbs into the action.',Timothy:'📖 Timothy steps forward to fight the good fight.',Mark:'⚡ Mark arrives. Immediately.',Ruth:'🌾 Ruth arrives with loyalty and determination.',Samuel:'👂 Samuel is listening.',David:'🪨 David steps forward with faith unshaken.'",1)
+          old="const selectInitialActive=n=>{if(page!=='battle'||winner)return;if(phase!=='setup'){if(phase==='prepare'&&currentPlayer==='player')return deploy(n);return;}if(active||!hand.includes(n))return;setActive(n);setHand(h=>h.filter(x=>x!==n));if(n==='Michael')setShield(10);setLog(l=>[lines[n],`⚔️ ${C[n].name} selected as your Active Character.`,...l].slice(0,18));};"
+          new="const onEnterPlay=n=>{if(n==='Andrew'&&prayers===0){setPrayers(p=>Math.min(10,p+1));addLog('🍞 I Know a Guy: Andrew gained 1 Prayer.')}if(n==='Zacchaeus'){setPrayers(p=>Math.min(10,p+1));addLog('🌳 Climb Higher: Zacchaeus gained 1 Prayer.')}};\n const onBenchEnter=n=>{onEnterPlay(n);if(active){setHp(h=>({...h,[active]:Math.min(C[active].hp,h[active]+5)}));addLog('🤝 Son of Encouragement: +5 HP to your Active Character.')}};\n const selectInitialActive=n=>{if(page!=='battle'||winner)return;if(phase!=='setup'){if(currentPlayer==='player')return deploy(n);return;}if(active||!hand.includes(n))return;setActive(n);setHand(h=>h.filter(x=>x!==n));if(n==='Michael')setShield(10);onEnterPlay(n);setLog(l=>[lines[n],`⚔️ ${C[n].name} selected as your Active Character.`,...l].slice(0,18));};"
+          if old not in s: raise SystemExit('select block not found')
+          s=s.replace(old,new,1)
+          old="const deploy=n=>{if(winner||currentPlayer!=='player'||phase==='setup'||phase==='ending'||phase==='ai')return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!hand.includes(n)||bench.includes(n)||active===n)return;if(bench.length>=3)return addLog('🪑 Bench is full (3/3).');setBench(b=>[...b,n]);setHand(h=>h.filter(x=>x!==n));addLog(`🪑 ${C[n].name} deployed to the Bench.`)};"
+          new="const deploy=n=>{if(winner||currentPlayer!=='player'||phase==='setup'||phase==='ending'||phase==='ai')return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!hand.includes(n)||bench.includes(n)||active===n)return;if(bench.length>=3)return addLog('🪑 Bench is full (3/3).');setBench(b=>[...b,n]);setHand(h=>h.filter(x=>x!==n));onBenchEnter(n);addLog(`🪑 ${C[n].name} deployed to the Bench.`)};"
+          if old not in s: raise SystemExit('deploy block not found')
+          s=s.replace(old,new,1)
+          old="let bonus=nextAttackBonus;if(active==='Gideon'&&!used.gideon){bonus+=10;setUsed(u=>({...u,gideon:true}))}let crit=Math.random()<(active==='David'?.25:.12);let total=dmg+bonus;if(active==='Samson')total=Math.round(total*1.10);"
+          new="let bonus=nextAttackBonus;if(active==='Gideon'&&!used.gideon){bonus+=10;setUsed(u=>({...u,gideon:true}))}if(active==='Mark'&&!used.mark){cost=Math.max(0,cost-1);setUsed(u=>({...u,mark:true}));addLog('⚡ Immediately!: Mark\'s first attack costs 1 less Prayer.')}let crit=Math.random()<(active==='David'?.25:.12);let total=dmg+bonus;if(active==='Samson')total=Math.round(total*1.10);if(active==='Timothy'&&hp[active]<=C[active].hp/2)total=Math.round(total*1.15);"
+          if old not in s: raise SystemExit('attack bonus block not found')
+          s=s.replace(old,new,1)
+          old="setPrayers(p=>p-cost);setNextAttackBonus(0);setEnemyHp(v=>Math.max(0,v-total));setAttacked(true);"
+          new="setPrayers(p=>p-cost);setNextAttackBonus(0);setEnemyHp(v=>Math.max(0,v-total));if(active==='Matthew'&&Math.random()<0.25){setPrayers(p=>Math.min(10,p+1));addLog('🪙 Tax Collector: Matthew collected 1 Prayer.')}setAttacked(true);"
+          if old not in s: raise SystemExit('prayer attack block not found')
+          s=s.replace(old,new,1)
+          old="if(active==='Peter'){dmg=Math.floor(dmg*0.85);addLog('🪨 Stand Firm: Peter takes 15% less damage.')}const prevented"
+          new="if(active==='Peter'){dmg=Math.floor(dmg*0.85);addLog('🪨 Stand Firm: Peter takes 15% less damage.')}if(bench.includes('Ruth')){dmg=Math.floor(dmg*0.90);addLog('🌾 Where You Go: Ruth protects the Active for 10% less damage.')}const prevented"
+          if old not in s: raise SystemExit('defense block not found')
+          s=s.replace(old,new,1)
+          old="setHp(h=>({...h,[active]:Math.max(0,h[active]-actual)}));addLog(`🤖 ${currentOpp.name} attacked for ${actual}${prevented?' (Protection blocked '+prevented+')':''}.`);"
+          new="const remainingHp=Math.max(0,(hp[active]??0)-actual);setHp(h=>({...h,[active]:remainingHp}));if(active==='Thomas'&&!used.thomas){setNextAttackBonus(v=>v+10);setUsed(u=>({...u,thomas:true}));addLog('🤔 Show Me: Thomas gains +10 damage on his next attack.')}if(active==='Philip'&&remainingHp>0&&remainingHp<=C[active].hp/2&&!used.philip){setUsed(u=>({...u,philip:true}));const occupied=new Set([active,...bench,...hand].filter(Boolean));const i=deck.findIndex(x=>!occupied.has(x));if(i>=0&&hand.length<3){const n=deck[i];setDeck(d=>d.filter((_,j)=>j!==i));setHand(h=>[...h,n]);addLog(`❓ Where Do We Buy Bread?: Philip drew ${C[n].name}.`)}else addLog('❓ Philip reached half HP, but no Character could be drawn.')}addLog(`🤖 ${currentOpp.name} attacked for ${actual}${prevented?' (Protection blocked '+prevented+')':''}.`);"
+          if old not in s: raise SystemExit('damage block not found')
+          s=s.replace(old,new,1)
+          old="if(currentOpp.ai==='Balanced'&&Math.random()<.3)setStatus(s=>({...s,stun:1,stunTurns:1}));"
+          new="if(currentOpp.ai==='Balanced'&&Math.random()<.3){if(active==='Samuel'&&!used.samuel){setUsed(u=>({...u,samuel:true}));addLog('👂 Speak, Lord: Samuel ignored the first Stun.')}else setStatus(s=>({...s,stun:1,stunTurns:1}));}"
+          if old not in s: raise SystemExit('stun block not found')
+          s=s.replace(old,new,1)
+          old="setStatus(s=>({...s,burn:Math.max(0,s.burn-1),plague:Math.max(0,s.plague-1),stun:Math.max(0,s.stun-1),stunTurns:Math.max(0,s.stunTurns-1)}));setCurrentPlayer"
+          new="setStatus(s=>({...s,burn:Math.max(0,s.burn-1),plague:Math.max(0,s.plague-1),stun:Math.max(0,s.stun-1),stunTurns:Math.max(0,s.stunTurns-1)}));setUsed(u=>({...u,thomas:false}));setCurrentPlayer"
+          if old not in s: raise SystemExit('enemy turn reset block not found')
+          s=s.replace(old,new,1)
+          old="setPhase('draw');setCharacterDraws(0);setSupportDraws(0);setPrayerDrawn(false);setAttacked(false);setSwitchCooldown(c=>Math.max(0,c-1));addLog('🔔 Your Upkeep begins.')"
+          new="setPhase('draw');setCharacterDraws(0);setSupportDraws(0);setPrayerDrawn(false);setAttacked(false);setUsed(u=>({...u,thomas:false}));setSwitchCooldown(c=>Math.max(0,c-1));addLog('🔔 Your Upkeep begins.')"
+          if old not in s: raise SystemExit('upkeep reset block not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit changes and remove patch workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx
+          git rm .github/workflows/add-common-cards.yml
+          git commit -m "Add ten common character cards and mechanics"
+          git push
