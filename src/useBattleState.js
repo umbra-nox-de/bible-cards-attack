@@ -1,6 +1,6 @@
 import {useCallback,useState} from "react";
-import {applyAction} from "./battleActions";
-import {BATTLE_PHASES} from "./battleRules";
+import {applyAction} from "./battleActions.js";
+import {BATTLE_PHASES} from "./battleRules.js";
 
 // Phase 1.3/1.4: battle-owned state lives in one container and state-changing
 // battle operations are routed through the authoritative action layer.
