@@ -109,7 +109,7 @@ export function deployCharacter(state,character){
   }
   if(character==="Michael")next={...next,shield:10};
   if(character==="Barnabas"&&next.active){
-    next={...next,hp:{...next.hp,[next.active]:Math.min(next.active&&next.hp?.[next.active]!=null?next.active&&999:999,(next.hp?.[next.active]??0)+5)}};
+    next={...next,hp:{...next.hp,[next.active]:(next.hp?.[next.active]??0)+5}};
     entryLogs.push("🤝 Son of Encouragement: +5 HP to your Active Character.");
   }
   return {ok:true,state:next,entryLogs};
