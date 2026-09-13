@@ -1,0 +1,39 @@
+name: Migrate Attack Passives
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply refactor
+        run: node scripts/refactorAttackPassives.mjs
+      - name: Install dependencies
+        run: npm install
+      - name: Validate
+        run: |
+          npm run test:battle
+          npm run test:engine
+          npm run test:rng
+          npm run test:support
+          npm run test:character
+          npm run build
+      - name: Commit migration and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx scripts/refactorAttackPassives.mjs scripts/verifyCharacterEffects.mjs package.json .github/workflows/migrate-attack-passives.yml
+          git rm -f scripts/refactorAttackPassives.mjs .github/workflows/migrate-attack-passives.yml
+          git commit -m "refactor: centralize attack passive resolution"
+          git push
