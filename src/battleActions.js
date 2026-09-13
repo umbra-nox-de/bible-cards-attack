@@ -1,12 +1,10 @@
 import {
-  BATTLE_PHASES,
   BATTLE_RULES,
   canDeployDuringTurn,
   canDrawCharacterDuringUpkeep,
   canDrawSupportDuringUpkeep,
   canDrawPrayerDuringUpkeep,
   canAttackDuringAction,
-  canBeginAction,
   canEndTurn,
   deployToBench,
   switchActive,
@@ -15,13 +13,13 @@ import {
   endTurnState
 } from "./battleRules";
 
-const clampPrayer=value=>Math.max(0,Math.min(BATTLE_RULES.prayerCap??10,value));
+const clampPrayer=value=>Math.max(0,Math.min(BATTLE_RULES.prayerCap,value));
 
-function recyclePrayerDeck(state){
+function recyclePrayerDeck(state,random=Math.random){
   if(state.prayerDeck.length>0||state.prayerDiscard.length===0)return state;
   return {
     ...state,
-    prayerDeck:[...state.prayerDiscard].sort(()=>Math.random()-.5),
+    prayerDeck:[...state.prayerDiscard].sort(()=>random()-.5),
     prayerDiscard:[]
   };
 }
@@ -34,9 +32,9 @@ export function beginAction(state){
   return beginActionState(state);
 }
 
-export function drawPrayer(state){
+export function drawPrayer(state,random=Math.random){
   if(!canDrawPrayerDuringUpkeep(state))return {ok:false,reason:"Prayer can only be drawn once during your Upkeep."};
-  let next=recyclePrayerDeck(state);
+  const next=recyclePrayerDeck(state,random);
   if(next.prayerDeck.length===0)return {ok:false,reason:"No Prayer cards are available."};
   const [amount,...rest]=next.prayerDeck;
   const prayerAmount=Number(amount)||0;
@@ -95,17 +93,12 @@ export function deployCharacter(state,character){
 }
 
 export function switchCharacter(state,character){
-  const result=switchActive(state,character,state.turnNo);
-  if(!result.ok)return result;
-  return result;
+  return switchActive(state,character,state.turnNo);
 }
 
 export function recordAttack(state){
   if(!canAttackDuringAction(state))return {ok:false,reason:"Attack is unavailable. Enter the Action Phase and make sure you have not already attacked."};
-  return {
-    ok:true,
-    state:{...state,attacked:true}
-  };
+  return {ok:true,state:{...state,attacked:true}};
 }
 
 export function finishTurn(state,{local=false}={}){
@@ -123,7 +116,7 @@ export function applyAction(state,action,options={}){
   switch(action.type){
     case "BEGIN_UPKEEP": return beginUpkeep(state);
     case "BEGIN_ACTION": return beginAction(state);
-    case "DRAW_PRAYER": return drawPrayer(state);
+    case "DRAW_PRAYER": return drawPrayer(state,options.random??Math.random);
     case "DRAW_CHARACTER": return drawCharacter(state,options.random??Math.random);
     case "DRAW_SUPPORT": return drawSupport(state,options.random??Math.random);
     case "DEPLOY_CHARACTER": return deployCharacter(state,action.character);
