@@ -28,5 +28,7 @@ jobs:
         run: npm run test:rng
       - name: Support effect tests
         run: npm run test:support
+      - name: Character effect tests
+        run: npm run test:character
       - name: Build
         run: npm run build
