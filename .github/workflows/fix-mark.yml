@@ -1,0 +1,31 @@
+name: Fix Mark Syntax
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix Mark apostrophe safely
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/App07.jsx')
+          s = p.read_text()
+          old = "Mark's first attack costs 1 less Prayer."
+          if old not in s:
+              raise SystemExit('Target Mark text not found')
+          s = s.replace(old, "Mark\\'s first attack costs 1 less Prayer.", 1)
+          p.write_text(s)
+          PY
+      - name: Commit fix and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx .github/workflows/fix-mark.yml
+          git rm .github/workflows/fix-mark.yml
+          git commit -m "Fix Mark passive syntax"
+          git push
