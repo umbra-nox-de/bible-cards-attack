@@ -134,7 +134,6 @@ export function recordAttack(state) {
   return { ok: true, state: { ...state, attacksUsed: state.attacksUsed + 1 } };
 }
 
-// Supports deliberately remain legal before and after an attack.
 export function canUseSupport(state) {
   return state.supportHand.length > 0;
 }
@@ -201,7 +200,11 @@ export function nextLocalPlayer(currentPlayer) {
 }
 
 export function beginUpkeepState(state) {
-  if (state?.winner || !isControllableTurn(state)) return { ok: false, reason: "Cannot begin Upkeep from the current turn state." };
+  if (state?.winner) return { ok: false, reason: "Cannot begin Upkeep after the battle has ended." };
+  if (state?.currentPlayer === "enemy") {
+    return { ok: true, state: { ...state, phase: BATTLE_PHASES.AI, characterDraws: 0, supportDraws: 0, attacksUsed: 0, prayerDrawn: false } };
+  }
+  if (!isControllableTurn(state)) return { ok: false, reason: "Cannot begin Upkeep from the current turn state." };
   return {
     ok: true,
     state: {
