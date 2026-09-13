@@ -20,5 +20,7 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm install
+      - name: Battle action tests
+        run: npm run test:battle
       - name: Build
         run: npm run build
