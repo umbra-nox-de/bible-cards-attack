@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {createBattleState} from "../src/useBattleState.js";
-import {BATTLE_PHASES} from "../src/battleRules.js";
+import {BATTLE_PHASES,BATTLE_RULES} from "../src/battleRules.js";
 import {applyAction} from "../src/battleActions.js";
 
 const base=createBattleState({
@@ -49,6 +49,7 @@ assert.equal(action.state.phase,BATTLE_PHASES.ACTION);
 const attack=applyAction({...action.state,attacked:false,attacksUsed:0},{type:"RECORD_ATTACK"});
 assert.equal(attack.ok,true);
 assert.equal(attack.state.attacked,true);
+assert.equal(attack.state.attacksUsed,BATTLE_RULES.attacksPerTurn);
 assert.equal(applyAction(attack.state,{type:"RECORD_ATTACK"}).ok,false);
 
 const ended=applyAction({...action.state,attacked:false,attacksUsed:0},{type:"END_TURN"});
