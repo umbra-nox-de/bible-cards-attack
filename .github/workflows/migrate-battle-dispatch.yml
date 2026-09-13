@@ -20,43 +20,48 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           path=Path('src/App07.jsx')
           text=path.read_text(encoding='utf-8')
 
+          def replace_between(source,start,end,replacement,anchor_name):
+              a=source.find(start)
+              if a<0: raise SystemExit(f'{anchor_name}: start anchor not found')
+              b=source.find(end,a+len(start))
+              if b<0: raise SystemExit(f'{anchor_name}: end anchor not found')
+              return source[:a]+replacement+source[b:]
+
           needle='setWinner,log,setLog}=useBattleState();'
-          replacement='setWinner,log,setLog,dispatchBattle}=useBattleState();'
-          if needle not in text:
-              raise SystemExit('useBattleState destructure anchor not found')
-          text=text.replace(needle,replacement,1)
+          if needle not in text: raise SystemExit('dispatcher destructure anchor not found')
+          text=text.replace(needle,'setWinner,log,setLog,dispatchBattle}=useBattleState();',1)
 
-          begin_pattern=r' const beginTurn=\(\)=>\{.*?\};\n'
-          begin_replacement=' const beginTurn=()=>{if(winner)return;dispatchBattle({type:"BEGIN_UPKEEP"});addLog(`🔔 Turn ${turnNo+1}: ${currentPlayer===\'player\'?\'Your\':currentPlayer.toUpperCase()} Upkeep.`)};\n'
-          text,n=re.subn(begin_pattern,begin_replacement,text,count=1,flags=re.S)
-          if n!=1: raise SystemExit(f'beginTurn replacement count={n}')
+          text=replace_between(
+              text,'const beginTurn=()=>{','const drawPrayer=',
+              'const beginTurn=()=>{if(winner)return;dispatchBattle({type:"BEGIN_UPKEEP"});addLog(`🔔 Turn ${turnNo+1}: ${currentPlayer===\'player\'?\'Your\':currentPlayer.toUpperCase()} Upkeep.`)};\n ',
+              'beginTurn')
 
-          prayer_pattern=r' const drawPrayer=\(\)=>\{.*?\};\n const beginTurn='
-          prayer_replacement=' const drawPrayer=()=>{if(!canDrawPrayerDuringUpkeep({phase,currentPlayer,prayerDrawn,winner}))return;dispatchBattle({type:"DRAW_PRAYER"});addLog(active===\'Solomon\'?\'🙏 Prayer Draw: Solomon receives Wisdom bonus.\':\'🙏 Prayer Draw.\')};\n const beginTurn='
-          text,n=re.subn(prayer_pattern,prayer_replacement,text,count=1,flags=re.S)
-          if n!=1: raise SystemExit(f'drawPrayer replacement count={n}')
+          text=replace_between(
+              text,'const drawPrayer=()=>{','const beginTurn=',
+              'const drawPrayer=()=>{if(!canDrawPrayerDuringUpkeep({phase,currentPlayer,prayerDrawn,winner}))return;dispatchBattle({type:"DRAW_PRAYER"});addLog(active===\'Solomon\'?\'🙏 Prayer Draw: Solomon receives Wisdom bonus.\':\'🙏 Prayer Draw.\')};\n ',
+              'drawPrayer')
 
-          support_pattern=r' const drawSupport=\(\)=>\{.*?\};\n const discardChar='
-          support_replacement=' const drawSupport=()=>{if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;dispatchBattle({type:"DRAW_SUPPORT"});addLog(active===\'Gabriel\'&&supportDraws===0?\'📯 Divine Message: Gabriel gained 1 Prayer.\':\'✨ Support Draw.\')};\n const discardChar='
-          text,n=re.subn(support_pattern,support_replacement,text,count=1,flags=re.S)
-          if n!=1: raise SystemExit(f'drawSupport replacement count={n}')
+          text=replace_between(
+              text,'const drawSupport=()=>{','const discardChar=',
+              'const drawSupport=()=>{if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;dispatchBattle({type:"DRAW_SUPPORT"});addLog(active===\'Gabriel\'&&supportDraws===0?\'📯 Divine Message: Gabriel gained 1 Prayer.\':\'✨ Support Draw.\')};\n ',
+              'drawSupport')
 
-          deploy_pattern=r' const deploy=\(n\)=>\{.*?\};\n const switchTo='
-          deploy_replacement=" const deploy=n=>{if(currentPlayer==='enemy'||winner)return;if(!active)return addLog('⚔️ Choose an Active Character first.');if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;const wasZero=prayers===0&&n==='Andrew';dispatchBattle({type:\"DEPLOY_CHARACTER\",character:n});addLog(`🪑 ${C[n].name} deployed to the Bench.`);if(n==='Zacchaeus')addLog('🌳 Climb Higher: Zacchaeus gained 1 Prayer.');if(wasZero)addLog('🍞 I Know a Guy: Andrew gained 1 Prayer.');if(n==='Michael')addLog(\"⚔️ Guardian's Wing: Michael gained 10 Protection.\");if(n==='Barnabas')addLog('🤝 Son of Encouragement: +5 HP to your Active Character.')};\n const switchTo="
-          text,n=re.subn(deploy_pattern,deploy_replacement,text,count=1,flags=re.S)
-          if n!=1: raise SystemExit(f'deploy replacement count={n}')
+          text=replace_between(
+              text,'const deploy=','const switchTo=',
+              'const deploy=n=>{if(currentPlayer===\'enemy\'||winner)return;if(!active)return addLog(\'⚔️ Choose an Active Character first.\');if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;const wasZero=prayers===0&&n===\'Andrew\';dispatchBattle({type:"DEPLOY_CHARACTER",character:n});addLog(`🪑 ${C[n].name} deployed to the Bench.`);if(n===\'Zacchaeus\')addLog(\'🌳 Climb Higher: Zacchaeus gained 1 Prayer.\');if(wasZero)addLog(\'🍞 I Know a Guy: Andrew gained 1 Prayer.\');if(n===\'Michael\')addLog("⚔️ Guardian\\'s Wing: Michael gained 10 Protection.");if(n===\'Barnabas\')addLog(\'🤝 Son of Encouragement: +5 HP to your Active Character.\')};\n ',
+              'deploy')
 
-          switch_pattern=r' const switchTo=\(n\)=>\{.*?\};\n const useSupport='
-          switch_replacement=' const switchTo=n=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;if(!active)return;if(switchCooldown>0)return addLog(`🔄 Switch is on cooldown for ${switchCooldown} more turn(s).`);if(prayers<1)return addLog(\'🙏 Switching costs 1 Prayer.\');dispatchBattle({type:"SWITCH_CHARACTER",character:n});addLog(`🔄 ${C[n].name} switched into Active.`)};\n const useSupport='
-          text,n=re.subn(switch_pattern,switch_replacement,text,count=1,flags=re.S)
-          if n!=1: raise SystemExit(f'switchTo replacement count={n}')
+          text=replace_between(
+              text,'const switchTo=','const useSupport=',
+              'const switchTo=n=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;if(!active)return;if(switchCooldown>0)return addLog(`🔄 Switch is on cooldown for ${switchCooldown} more turn(s).`);if(prayers<1)return addLog(\'🙏 Switching costs 1 Prayer.\');dispatchBattle({type:"SWITCH_CHARACTER",character:n});addLog(`🔄 ${C[n].name} switched into Active.`)};\n ',
+              'switchTo')
 
           path.write_text(text,encoding='utf-8')
+          print('Dispatcher migration complete.')
           PY
 
       - name: Install dependencies
@@ -71,7 +76,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/App07.jsx
-          git diff --cached --exit-code && exit 0 || true
+          git diff --cached --quiet && exit 0
           git commit -m "refactor: route safe battle UI actions through dispatcher"
           git push
 
@@ -79,9 +84,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy.yml --ref main
-
-      - name: Remove one-time migration workflow
-        run: |
-          git rm .github/workflows/migrate-battle-dispatch.yml
-          git commit -m "chore: remove one-time battle migration workflow"
-          git push
