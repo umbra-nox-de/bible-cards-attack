@@ -13,75 +13,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
       - name: Refactor battle rules and guards
         shell: python
         run: |
           from pathlib import Path
-          import re
           p=Path('src/battleRules.js')
           s=p.read_text()
-          marker='export function isPlayerTurn(state) {'
-          if marker not in s:
+          if 'export function isPlayerTurn(state)' not in s:
               s += '''\n\nexport function isPlayerTurn(state) {\n  return state?.currentPlayer === "player";\n}\n\nexport function isUpkeep(state) {\n  return state?.phase === "draw";\n}\n\nexport function isActionPhase(state) {\n  return state?.phase === "prepare" || state?.phase === "attack";\n}\n\nexport function canDeployDuringTurn(state, character) {\n  return isPlayerTurn(state) && !state?.winner && state?.phase !== "setup" &&\n    (isUpkeep(state) || isActionPhase(state)) && canDeployToBench(state, character);\n}\n\nexport function canDrawCharacterDuringUpkeep(state) {\n  return isPlayerTurn(state) && isUpkeep(state) && canDrawCharacter(state);\n}\n\nexport function canDrawSupportDuringUpkeep(state) {\n  return isPlayerTurn(state) && isUpkeep(state) && canDrawSupport(state);\n}\n\nexport function canAttackDuringAction(state) {\n  return isPlayerTurn(state) && isActionPhase(state) && canAttack(state);\n}\n'''
               p.write_text(s)
           p=Path('src/App07.jsx')
           s=p.read_text()
           if 'from "./battleRules"' not in s:
               s=s.replace('import React,{useEffect,useMemo,useState} from "react";','import React,{useEffect,useMemo,useState} from "react";\nimport {canDeployDuringTurn,canDrawCharacterDuringUpkeep,canDrawSupportDuringUpkeep,canAttackDuringAction} from "./battleRules";')
-          def replace_func(src,name,new_body):
-              pat=re.compile(r'const '+re.escape(name)+r'\s*=')
-              m=pat.search(src)
-              if not m: return src,False
-              start=m.start()
-              brace=src.find('{',m.end())
-              if brace<0: return src,False
-              depth=0; i=brace; quote=None; esc=False
-              while i<len(src):
-                  c=src[i]
-                  if quote:
-                      if esc: esc=False
-                      elif c=='\\': esc=True
-                      elif c==quote: quote=None
-                  else:
-                      if c in "'\\\"`": quote=c
-                      elif c=='{': depth+=1
-                      elif c=='}':
-                          depth-=1
-                          if depth==0:
-                              j=i+1
-                              while j<len(src) and src[j].isspace(): j+=1
-                              if j<len(src) and src[j]==';': j+=1
-                              return src[:start]+new_body+src[j:],True
-                  i+=1
-              return src,False
-          # Add authoritative guards without changing the existing mechanics.
-          guards={
-            'drawChar': '''const drawChar=()=>{\n  if(!canDrawCharacterDuringUpkeep({phase,currentPlayer,hand,characterDraws}))return;\n  ''',
-            'drawSupport': '''const drawSupport=()=>{\n  if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;\n  ''',
-            'attack': '''const attack=(index)=>{\n  if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;\n  ''',
-            'deploy': '''const deploy=n=>{\n  if(winner||currentPlayer!=="player"||phase==="setup")return;\n  if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;\n  if(!active)return addLog("⚔️ Choose an Active Character first.");\n  ''',
-          }
-          for name,prefix in guards.items():
-              pat=re.compile(r'const '+re.escape(name)+r'\s*=')
-              m=pat.search(s)
-              if not m: continue
-              brace=s.find('{',m.end())
-              if brace<0: continue
-              # Only replace the opening portion through the first semicolon after the existing guard block.
-              # Avoid rewriting the function body; replace known leading guard text where possible.
-              if name=='drawChar':
-                  s=s[:m.start()]+s[m.start():].replace('const drawChar=()=>{if(phase!==\'prepare\'||currentPlayer!==\'player\'||winner)return;','const drawChar=()=>{\n  if(!canDrawCharacterDuringUpkeep({phase,currentPlayer,hand,characterDraws}))return;',1)
-              elif name=='drawSupport':
-                  s=s[:m.start()]+s[m.start():].replace('const drawSupport=()=>{if(phase!==\'prepare\'||currentPlayer!==\'player\'||winner)return;','const drawSupport=()=>{\n  if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;',1)
-              elif name=='attack':
-                  s=s[:m.start()]+s[m.start():].replace('const attack=(index)=>{if(phase!==\'prepare\'||currentPlayer!==\'player\'||attacked||winner||!active)return;','const attack=(index)=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;',1)
-              elif name=='deploy':
-                  s=s[:m.start()]+s[m.start():].replace('const deploy=n=>{if(winner)return;if(phase===\'setup\')return selectInitialActive(n);if(phase!==\'prepare\'||currentPlayer!==\'player\')return;','const deploy=n=>{if(winner||currentPlayer!==\"player\"||phase===\"setup\")return;if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;',1)
+          replacements=[
+            ("const drawChar=()=>{if(phase!=='prepare'||currentPlayer!=='player'||winner)return;", "const drawChar=()=>{if(!canDrawCharacterDuringUpkeep({phase,currentPlayer,hand,characterDraws}))return;"),
+            ("const drawSupport=()=>{if(phase!=='prepare'||currentPlayer!=='player'||winner)return;", "const drawSupport=()=>{if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;"),
+            ("const attack=(index)=>{if(phase!=='prepare'||currentPlayer!=='player'||attacked||winner||!active)return;", "const attack=(index)=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;"),
+            ("const deploy=n=>{if(winner)return;if(phase==='setup')return selectInitialActive(n);if(phase!=='prepare'||currentPlayer!=='player')return;", "const deploy=n=>{if(winner||currentPlayer!=='player'||phase==='setup')return;if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;")
+          ]
+          for old,new in replacements:
+              if old in s: s=s.replace(old,new,1)
           p.write_text(s)
-          # Keep this workflow from re-running after its own commit.
-          wf=Path('.github/workflows/refactor-phase1.yml')
-          wf.unlink()
+          Path('.github/workflows/refactor-phase1.yml').unlink()
       - name: Build
         run: npm install && npm run build
       - name: Commit refactor
