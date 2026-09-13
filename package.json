@@ -10,7 +10,8 @@
     "test:battle": "node scripts/verifyBattleActions.mjs",
     "test:engine": "node scripts/verifyBattleEngine.mjs",
     "test:rng": "node scripts/verifyRng.mjs",
-    "test:support": "node scripts/verifySupportEffects.mjs"
+    "test:support": "node scripts/verifySupportEffects.mjs",
+    "test:character": "node scripts/verifyCharacterEffects.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
