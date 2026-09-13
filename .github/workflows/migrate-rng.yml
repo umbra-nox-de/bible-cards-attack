@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   migrate:
-    if: contains(github.event.head_commit.message, 'Add RNG migration helper')
+    if: contains(github.event.head_commit.message, 'Add RNG migration helper') || contains(github.event.head_commit.message, 'Retry RNG migration')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,27 +20,32 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p=Path('src/App07.jsx')
           s=p.read_text()
-          if 'from "./rng.js"' not in s:
-              s=s.replace('import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";\n', 'import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";\nimport {battleRng} from "./rng.js";\n')
-          s=s.replace('function shuffle(a){return [...a].sort(()=>Math.random()-.5)}', 'function shuffle(a){return battleRng.shuffle(a)}')
-          s=s.replace("const opener=Math.random()<.5?'player':'enemy';", "const opener=battleRng.chance(.5)?'player':'enemy';")
-          s=s.replace('random:Math.random', 'random:battleRng.next')
-          s=s.replace('random: Math.random', 'random: battleRng.next')
-          s=s.replace("Math.random()<0.25", "battleRng.chance(0.25)")
-          s=s.replace("Math.random()<.25", "battleRng.chance(.25)")
-          s=s.replace("Math.random()<0.5", "battleRng.chance(0.5)")
-          s=s.replace("Math.random()<.5", "battleRng.chance(.5)")
-          s=s.replace("Math.random()<0.3", "battleRng.chance(0.3)")
-          s=s.replace("Math.random()<.3", "battleRng.chance(.3)")
-          p.write_text(s)
-
+          if 'import {battleRng} from "./rng.js";' not in s:
+              marker='import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";\n'
+              if marker not in s:
+                  raise SystemExit('Battle engine import marker not found')
+              s=s.replace(marker, marker+'import {battleRng} from "./rng.js";\n',1)
+          s=s.replace('function shuffle(a){return [...a].sort(()=>Math.random()-.5)}','function shuffle(a){return battleRng.shuffle(a)}')
+          s=s.replace("const opener=Math.random()<.5?'player':'enemy';","const opener=battleRng.chance(.5)?'player':'enemy';")
+          s=s.replace('const result=resolveAttack({active,character:C[active],attack:a,index,hp,nextAttackBonus,used});','const result=resolveAttack({active,character:C[active],attack:a,index,hp,nextAttackBonus,used,random:battleRng.next});')
+          s=s.replace('const result=resolveEnemyDamage({opponent:currentOpp,enemyHp,enemyStatus});','const result=resolveEnemyDamage({opponent:currentOpp,enemyHp,enemyStatus,random:battleRng.next});')
+          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*0\\.25', 'battleRng.chance(0.25)', s)
+          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*\\.25', 'battleRng.chance(.25)', s)
+          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*0\\.5', 'battleRng.chance(0.5)', s)
+          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*\\.5', 'battleRng.chance(.5)', s)
+          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*0\\.3', 'battleRng.chance(0.3)', s)
+          s=re.sub(r'Math\\.random\\(\\)\\s*<\\s*\\.3', 'battleRng.chance(.3)', s)
           leftovers=[(i+1,line) for i,line in enumerate(s.splitlines()) if 'Math.random' in line]
           if leftovers:
-              raise SystemExit(f'Unmigrated Math.random usage: {leftovers}')
+              raise SystemExit('Unmigrated Math.random usage: '+repr(leftovers))
+          if 'battleRng' not in s:
+              raise SystemExit('battleRng migration did not apply')
+          p.write_text(s)
           PY
-      - name: Add RNG test script
+      - name: Add RNG validation
         shell: bash
         run: |
           python3 - <<'PY'
@@ -53,10 +58,13 @@ jobs:
           w=Path('.github/workflows/refactor-validation.yml')
           ws=w.read_text()
           if 'Battle RNG tests' not in ws:
-              ws=ws.replace('      - name: Battle engine tests\n        run: npm run test:engine\n', '      - name: Battle engine tests\n        run: npm run test:engine\n      - name: Battle RNG tests\n        run: npm run test:rng\n')
+              needle='      - name: Battle engine tests\n        run: npm run test:engine\n'
+              if needle not in ws:
+                  raise SystemExit('Validation workflow marker not found')
+              ws=ws.replace(needle, needle+'      - name: Battle RNG tests\n        run: npm run test:rng\n',1)
               w.write_text(ws)
           PY
-      - name: Validate
+      - name: Validate migration
         run: |
           npm install
           npm run test:battle
@@ -68,7 +76,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/App07.jsx src/rng.js scripts/verifyRng.mjs package.json .github/workflows/refactor-validation.yml
+          git add src/App07.jsx scripts/verifyRng.mjs src/rng.js package.json .github/workflows/refactor-validation.yml
           git rm .github/workflows/migrate-rng.yml
           git commit -m "Centralize battle RNG usage"
           git push
