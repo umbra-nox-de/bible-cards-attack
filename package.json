@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:battle": "node scripts/verifyBattleActions.mjs",
-    "test:engine": "node scripts/verifyBattleEngine.mjs"
+    "test:engine": "node scripts/verifyBattleEngine.mjs",
+    "test:rng": "node scripts/verifyRng.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
