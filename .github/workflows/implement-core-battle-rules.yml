@@ -1,0 +1,68 @@
+name: Implement Core Battle Rules
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Wire core action guards
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/App07.jsx')
+          s = p.read_text(encoding='utf-8')
+
+          old = 'canDrawPrayerDuringUpkeep,canBeginAction,canAttackDuringAction,canEndTurn,beginUpkeepState,beginActionState,beginAiState,endTurnState,nextLocalPlayer'
+          new = 'canDrawPrayerDuringUpkeep,canBeginAction,canAttackDuringAction,canEndTurn,canSwitch,canPlaySupport,beginUpkeepState,beginActionState,beginAiState,endTurnState,nextLocalPlayer'
+          if old in s and 'canSwitch,canPlaySupport' not in s:
+              s = s.replace(old, new, 1)
+
+          old = 'const switchTo=n=>{if(!active||!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;if(switchCooldown>0)return addLog(`🔄 Switch is on cooldown for ${switchCooldown} more turn(s).`);if(prayers<1)return addLog(\'🙏 Switching costs 1 Prayer.\');dispatchBattle({type:"SWITCH_CHARACTER",character:n});'
+          new = 'const switchTo=n=>{const check=canSwitch({active,target:n,bench,prayers,switchCooldown,forcedReplacementPending:false});if(!check.ok){if(check.reason==="switch-on-cooldown")return addLog(`🔄 Switch is on cooldown for ${switchCooldown} more turn(s).`);if(check.reason==="not-enough-prayers")return addLog(\'🙏 Switching costs 1 Prayer.\');return;}dispatchBattle({type:"SWITCH_CHARACTER",character:n});'
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = 'const useSupport=s=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:0,forcedReplacementPending:false}))return;if(!supportHand.some(x=>x===s||x?.id===s.id))return;const result=resolveSupport({supportId:s.id,active,used});'
+          new = 'const useSupport=s=>{if(!canPlaySupport({phase,currentPlayer,active,winner}))return;if(!supportHand.some(x=>x===s||x?.id===s.id))return;const result=resolveSupport({supportId:s.id,active,used});'
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+          # Strengthen the battle-rule module with explicit action-phase guards.
+          p = Path('src/battleRules.js')
+          s = p.read_text(encoding='utf-8')
+          marker = 'export function canPlaySupportDuringAction'
+          if marker not in s:
+              s += '''\n\nexport function canSwitchDuringAction(state, target) {\n  return isControllableTurn(state) && isActionPhase(state) &&\n    canSwitch(state, state.turnNo ?? 0) && state.bench?.includes(target);\n}\n\nexport function canPlaySupportDuringAction(state) {\n  return isControllableTurn(state) && isActionPhase(state) &&\n    !state?.winner && !!state?.active && state?.supportHand?.length > 0;\n}\n'''
+              p.write_text(s, encoding='utf-8')
+      - name: Validate
+        run: |
+          npm install
+          npm run test:battle
+          npm run test:engine
+          npm run test:rng
+          npm run test:support
+          npm run test:character
+          npm run build
+      - name: Commit implementation and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App07.jsx src/battleRules.js .github/workflows/implement-core-battle-rules.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'feat: wire core battle action rules'
+          git push
