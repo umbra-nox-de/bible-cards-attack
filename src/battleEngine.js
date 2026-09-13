@@ -2,6 +2,7 @@
 // This module intentionally has no React or browser dependencies.
 
 import {BATTLE_RULES} from "./battleRules.js";
+import {SUPPORT_EFFECTS} from "./supportEffects.js";
 
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
@@ -64,25 +65,45 @@ export function resolveEnemyDamage({opponent={},enemyHp=0,enemyStatus={},random=
 }
 
 export function resolveSupport({supportId,active,used={}}){
-  const result={ok:true,heal:0,prayerGain:0,shieldGain:0,enemyDamage:0,cleanseAll:false,cleanseStun:false,enemyWeaken:0,nextAttackBonus:0,used:{...used},message:""};
-  const paul=active==="Paul";
-  const icon={loaves:"🍞",armor:"🛡️",prayer:"🙏",trumpets:"📯",temple:"🏛️",manna:"🌤️",dove:"🕊️",commandments:"📜",ark:"🚢",sinai:"⛰️",courage:"🪨",redsea:"🌊"}[supportId]||"✨";
-  switch(supportId){
-    case "loaves": result.heal=paul?21:20; result.message=`${icon} Healed 20 HP.${paul?" ✉️ Paul receives 5% extra healing.":""}`; break;
-    case "armor": result.shieldGain=15; result.message=`${icon} Protection increased.`; break;
-    case "prayer": result.prayerGain=2; result.message="🙏 Gained 2 Prayers."; break;
-    case "trumpets": result.enemyDamage=15; result.message="📯 Dealt 15 damage."; break;
-    case "temple": result.prayerGain=3; result.message="🏛️ Gained 3 Prayers."; break;
-    case "manna": result.heal=paul?11:10; result.prayerGain=1; result.message=`🌤️ Healed 10 and gained 1 Prayer.${paul?" ✉️ Paul receives 5% extra healing.":""}`; break;
-    case "dove": result.cleanseAll=true; result.message="🕊️ Negative statuses removed."; break;
-    case "commandments": result.enemyWeaken=2; result.message="📜 Enemy weakened for 2 turns."; break;
-    case "ark": result.shieldGain=20; result.message="🚢 Protection increased."; break;
-    case "sinai": result.prayerGain=2; result.cleanseStun=true; result.message="⛰️ Gained 2 Prayer and removed Stun."; break;
-    case "courage": result.nextAttackBonus=15; result.message="🪨 Next attack gets +15 damage."; break;
-    case "redsea": result.enemyDamage=25; result.enemyWeaken=1; result.message="🌊 Dealt 25 damage and weakened enemy."; break;
-    default: return {ok:false,reason:"Unknown Support card."};
+  const effect=SUPPORT_EFFECTS[supportId];
+  if(!effect)return {ok:false,reason:"Unknown Support card."};
+
+  const result={
+    ok:true,
+    heal:0,
+    prayerGain:0,
+    shieldGain:0,
+    enemyDamage:0,
+    cleanseAll:false,
+    cleanseStun:false,
+    enemyWeaken:0,
+    nextAttackBonus:0,
+    used:{...used},
+    message:""
+  };
+
+  if(effect.heal){
+    result.heal=active==="Paul"&&effect.paulHealMultiplier
+      ?Math.round(effect.heal*effect.paulHealMultiplier)
+      :effect.heal;
   }
-  if(active==="Esther"&&!used.esther){result.prayerGain+=1;result.used.esther=true;result.message+=` 👑 Royal Favor: +1 Prayer.`;}
+  result.prayerGain=Number(effect.prayerGain)||0;
+  result.shieldGain=Number(effect.shieldGain)||0;
+  result.enemyDamage=Number(effect.enemyDamage)||0;
+  result.cleanseAll=Boolean(effect.cleanseAll);
+  result.cleanseStun=Boolean(effect.cleanseStun);
+  result.enemyWeaken=Number(effect.enemyWeaken)||0;
+  result.nextAttackBonus=Number(effect.nextAttackBonus)||0;
+  result.message=typeof effect.message==="function"
+    ?effect.message({active,paul:active==="Paul"})
+    :effect.message||"✨ Support effect applied.";
+
+  if(active==="Esther"&&!used.esther){
+    result.prayerGain+=1;
+    result.used.esther=true;
+    result.message+=` 👑 Royal Favor: +1 Prayer.`;
+  }
+
   return result;
 }
 
