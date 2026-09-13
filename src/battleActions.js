@@ -74,7 +74,17 @@ export function recordAttack(state){
   if(!canAttackDuringAction(state))return {ok:false,reason:"Attack is unavailable. Enter the Action Phase and make sure you have not already attacked."};
   return {ok:true,state:{...state,attacked:true,attacksUsed:Math.min(BATTLE_RULES.attacksPerTurn,state.attacksUsed+1)}};
 }
-export function finishTurn(state,{local=false}={}){if(!canEndTurn(state))return {ok:false,reason:"The turn can only end from the Action Phase."};return endTurnState({...state,attacksUsed:state.attacked?1:0},{local});}
+
+export function useSupportCard(state,support){
+  if(!canAttackDuringAction({...state,attacksUsed:0,forcedReplacementPending:false}))return {ok:false,reason:"Supports can only be used during the Action Phase."};
+  const id=typeof support==="string"?support:support?.id;
+  const index=state.supportHand.findIndex(card=>(typeof card==="string"?card:card?.id)===id);
+  if(index<0)return {ok:false,reason:"Support card is not in your hand."};
+  const card=state.supportHand[index];
+  return {ok:true,state:{...state,supportHand:state.supportHand.filter((_,i)=>i!==index),discard:[...state.discard,{type:"support",name:typeof card==="string"?card:card.name}]},card};
+}
+
+export function finishTurn(state,{local=false}={}){if(!canEndTurn(state))return {ok:false,reason:"Turn cannot end from the current state."};return endTurnState({...state,attacksUsed:state.attacked?1:0},{local});}
 export function finishForcedReplacement(state){if(!state?.active)return {ok:false,reason:"A forced replacement requires an Active Character."};return {ok:true,state:{...state,forcedReplacementPending:false}};}
 
 export function applyAction(state,action,options={}){
@@ -88,6 +98,7 @@ export function applyAction(state,action,options={}){
     case "DEPLOY_CHARACTER":return deployCharacter(state,action.character);
     case "SWITCH_CHARACTER":return switchCharacter(state,action.character);
     case "RECORD_ATTACK":return recordAttack(state);
+    case "USE_SUPPORT":return useSupportCard(state,action.support);
     case "END_TURN":return finishTurn(state,{local:options.local===true});
     case "FINISH_FORCED_REPLACEMENT":return finishForcedReplacement(state);
     default:return {ok:false,reason:`Unknown battle action: ${action.type}`};
