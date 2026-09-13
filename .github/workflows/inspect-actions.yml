@@ -1,0 +1,35 @@
+name: Inspect Battle Actions
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Inspect App07 handlers
+        run: |
+          python - <<'PY'
+          import re
+          text=open('src/App07.jsx',encoding='utf-8').read()
+          patterns=[r'\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^\n]*?=>',r'\bfunction\s+([A-Za-z_$][\w$]*)\s*\(']
+          names=[]
+          for p in patterns:
+              names += re.findall(p,text)
+          seen=[]
+          for n in names:
+              if n not in seen: seen.append(n)
+          print('HANDLERS:')
+          print('\n'.join(seen))
+          print('\nBATTLE STATE MUTATIONS:')
+          for line_no,line in enumerate(text.splitlines(),1):
+              if any(s in line for s in ['setActive(','setBench(','setHand(','setDeck(','setSupportHand(','setSupportDeck(','setPrayers(','setPhase(','setTurnNo(','setCurrentPlayer(','setCharacterDraws(','setSupportDraws(','setPrayerDrawn(','setAttacked(','setShield(','setNextAttackBonus(','setStatus(','setEnemyStatus(','setWinner(']):
+                  print(f'{line_no}: {line[:260]}')
+          PY
