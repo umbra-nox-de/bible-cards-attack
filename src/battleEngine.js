@@ -43,8 +43,24 @@ export function resolveAttack({active,character,attack,index=0,hp={},nextAttackB
     critChance,
     nextAttackBonus:0,
     used:nextUsed,
-    prayerAfter: null
+    prayerAfter:null
   };
+}
+
+export function resolveEnemyDamage({opponent={},enemyHp=0,enemyStatus={},random=Math.random}){
+  let damage=Math.max(0,Number(opponent.damage)||0);
+  const logs=[];
+
+  if(opponent.ai==="Power")damage=random()<0.45?60:30;
+  if(opponent.ai==="Aggressive"&&random()<0.3)damage+=12;
+  if(opponent.ai==="Strategist"&&enemyHp<60){damage=20;logs.push("📜 Strategist AI chooses a safer attack.");}
+  if(enemyStatus.weaken)damage=Math.max(1,damage-10);
+
+  const status={};
+  if(opponent.ai==="Poison")status.plague=2;
+  if(opponent.ai==="Balanced"&&random()<0.3)status.stun=1;
+
+  return {damage,status,logs};
 }
 
 export function applyIncomingDamage({amount,active,hp,character,bench=[],shield=0}){
@@ -71,7 +87,8 @@ export function advanceStatus(status={}){
     burn:Math.max(0,(status.burn||0)-1),
     plague:Math.max(0,(status.plague||0)-1),
     stun:Math.max(0,(status.stun||0)-1),
-    stunTurns:Math.max(0,(status.stunTurns||0)-1)
+    stunTurns:Math.max(0,(status.stunTurns||0)-1),
+    weaken:Math.max(0,(status.weaken||0)-1)
   };
 }
 
