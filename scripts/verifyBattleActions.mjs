@@ -31,7 +31,7 @@ const recycled=applyAction(createBattleState({
   prayerDeck:[],
   prayerDiscard:[{amount:3},{amount:1}],
   prayers:0
-}),{type:"DRAW_PRAYER"},{random:()=>0});
+}),{type:"DRAW_PRAYER"},{random:()=>0.5});
 assert.equal(recycled.ok,true);
 assert.equal(recycled.state.prayers,3);
 assert.equal(recycled.state.prayerDiscard[0].amount,3);
