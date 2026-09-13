@@ -1,0 +1,32 @@
+name: Phase 1.4.2 Dispatcher Migration
+on:
+  push:
+    branches: ["main"]
+permissions:
+  contents: write
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Apply stage 2 migration
+        run: python scripts/migrateBattleDispatcherStage2.py
+      - name: Install dependencies
+        run: npm install
+      - name: Battle action tests
+        run: npm run test:battle
+      - name: Production build
+        run: npm run build
+      - name: Commit verified migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx src/battleActions.js scripts/verifyBattleActions.mjs
+          git rm -f scripts/migrateBattleDispatcherStage2.py .github/workflows/migrate-dispatch-stage2.yml || true
+          if git diff --cached --quiet; then
+            echo "No verified migration changes to commit."
+            exit 0
+          fi
+          git commit -m "refactor: migrate remaining battle actions through dispatcher"
+          git push
