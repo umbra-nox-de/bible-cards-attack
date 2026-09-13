@@ -2,11 +2,11 @@ name: Phase 1 Battle State Consolidation v2
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
   consolidate:
@@ -23,31 +23,33 @@ jobs:
           node-version: 24
 
       - name: Consolidate battle state
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path=Path('src/App07.jsx')
-          text=path.read_text(encoding='utf-8')
+          path = Path('src/App07.jsx')
+          text = path.read_text(encoding='utf-8')
 
           if 'from "./useBattleState"' not in text:
-              text=text.replace(
+              text = text.replace(
                   'import {BATTLE_PHASES,',
                   'import {useBattleState} from "./useBattleState";\nimport {BATTLE_PHASES,',
                   1,
               )
 
-          if 'const {state:battleState' not in text:
-              start=text.index(' const [active,setActive')
-              end=text.index('\n const addLog',start)
-              replacement=''' const {state:battleState,active,setActive,bench,setBench,hand,setHand,deck,setDeck,supportHand,setSupportHand,supportDeck,setSupportDeck,discard,setDiscard,hp,setHp,enemyHp,setEnemyHp,prayers,setPrayers,prayerDeck,setPrayerDeck,prayerDiscard,setPrayerDiscard,phase,setPhase,turnNo,setTurnNo,firstPlayer,setFirstPlayer,currentPlayer,setCurrentPlayer,characterDraws,setCharacterDraws,supportDraws,setSupportDraws,prayerDrawn,setPrayerDrawn,attacked,setAttacked,switchCooldown,setSwitchCooldown,shield,setShield,nextAttackBonus,setNextAttackBonus,status,setStatus,enemyStatus,setEnemyStatus,used,setUsed,winner,setWinner,log,setLog}=useBattleState();
- const [detail,setDetail]=useState(null),[code,setCode]=useState(''),[codeMsg,setCodeMsg]=useState('');'''
-              text=text[:start]+replacement+text[end:]
+          old = """ const [active,setActive]=useState(null),[bench,setBench]=useState([]),[hand,setHand]=useState([]),[deck,setDeck]=useState([]),[supportHand,setSupportHand]=useState([]),[supportDeck,setSupportDeck]=useState([]),[discard,setDiscard]=useState([]);\n const [hp,setHp]=useState({}),[enemyHp,setEnemyHp]=useState(0),[prayers,setPrayers]=useState(0),[prayerDeck,setPrayerDeck]=useState([]),[prayerDiscard,setPrayerDiscard]=useState([]);\n const [phase,setPhase]=useState(BATTLE_PHASES.SETUP),[turnNo,setTurnNo]=useState(0),[firstPlayer,setFirstPlayer]=useState('player'),[currentPlayer,setCurrentPlayer]=useState('player');\n const [characterDraws,setCharacterDraws]=useState(0),[supportDraws,setSupportDraws]=useState(0),[prayerDrawn,setPrayerDrawn]=useState(false),[attacked,setAttacked]=useState(false),[switchCooldown,setSwitchCooldown]=useState(0),[shield,setShield]=useState(0),[nextAttackBonus,setNextAttackBonus]=useState(0);\n const [status,setStatus]=useState({burn:0,plague:0,stun:0,stunTurns:0}),[enemyStatus,setEnemyStatus]=useState({burn:0,plague:0,weaken:0}),[used,setUsed]=useState({jonah:false,gideon:false,esther:false,paul:false,peter:false,samson:false,ga:false,philip:false,mark:false,samuel:false,thomas:false,gabriel:false});\n const [winner,setWinner]=useState(null),[log,setLog]=useState([]),[detail,setDetail]=useState(null),[code,setCode]=useState(''),[codeMsg,setCodeMsg]=useState('');"""
 
-          path.write_text(text,encoding='utf-8')
+          new = """ const {state:battleState,active,setActive,bench,setBench,hand,setHand,deck,setDeck,supportHand,setSupportHand,supportDeck,setSupportDeck,discard,setDiscard,hp,setHp,enemyHp,setEnemyHp,prayers,setPrayers,prayerDeck,setPrayerDeck,prayerDiscard,setPrayerDiscard,phase,setPhase,turnNo,setTurnNo,firstPlayer,setFirstPlayer,currentPlayer,setCurrentPlayer,characterDraws,setCharacterDraws,supportDraws,setSupportDraws,prayerDrawn,setPrayerDrawn,attacked,setAttacked,switchCooldown,setSwitchCooldown,shield,setShield,nextAttackBonus,setNextAttackBonus,status,setStatus,enemyStatus,setEnemyStatus,used,setUsed,winner,setWinner,log,setLog}=useBattleState();\n const [detail,setDetail]=useState(null),[code,setCode]=useState(''),[codeMsg,setCodeMsg]=useState('');"""
+
+          if old not in text:
+              raise SystemExit('Expected battle state declaration block was not found; refusing to modify App07.jsx.')
+
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
           PY
 
-      - name: Verify
+      - name: Verify source
         run: |
           grep -q 'state:battleState' src/App07.jsx
           grep -q 'from "./useBattleState"' src/App07.jsx
@@ -58,24 +60,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Commit refactor
+      - name: Commit consolidation and remove workflow
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/App07.jsx src/useBattleState.js
-          if git diff --cached --quiet; then
-            echo "No changes needed."
-          else
-            git commit -m "refactor: consolidate battle state"
-            git push
-          fi
-
-      - name: Remove temporary workflow
-        if: always()
-        run: |
-          git rm -f .github/workflows/phase1-state-v2.yml || true
-          if git diff --cached --quiet; then exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: remove temporary state workflow"
+          git add src/App07.jsx
+          git rm -f .github/workflows/phase1-state-v2.yml
+          git commit -m "refactor: consolidate battle state"
           git push
