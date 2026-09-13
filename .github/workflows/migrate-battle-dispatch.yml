@@ -1,0 +1,101 @@
+name: Migrate Battle UI To Dispatcher
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Migrate safe battle handlers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path=Path('src/App07.jsx')
+          text=path.read_text(encoding='utf-8')
+
+          old_import='from "./battleRules";'
+          new_import='from "./battleRules";'
+          if old_import not in text:
+              raise SystemExit('battleRules import anchor not found')
+
+          needle='setWinner,log,setLog}=useBattleState();'
+          replacement='setWinner,log,setLog,dispatchBattle}=useBattleState();'
+          if needle not in text:
+              raise SystemExit('useBattleState destructure anchor not found')
+          text=text.replace(needle,replacement,1)
+
+          begin_pattern=r' const beginTurn=\(\)=>\{.*?\};\n'
+          begin_replacement=' const beginTurn=()=>{if(winner)return;const result=dispatchBattle({type:"BEGIN_UPKEEP"});addLog(`🔔 Turn ${turnNo+1}: ${currentPlayer===\'player\'?\'Your\':currentPlayer.toUpperCase()} Upkeep.`)};\n'
+          text,n=re.subn(begin_pattern,begin_replacement,text,count=1,flags=re.S)
+          if n!=1: raise SystemExit(f'beginTurn replacement count={n}')
+
+          prayer_pattern=r' const drawPrayer=\(\)=>\{.*?\};\n const beginTurn='
+          prayer_replacement=' const drawPrayer=()=>{if(!canDrawPrayerDuringUpkeep({phase,currentPlayer,prayerDrawn,winner}))return;dispatchBattle({type:"DRAW_PRAYER"});addLog(active===\'Solomon\'?\'🙏 Prayer Draw: Solomon receives Wisdom bonus.\':\'🙏 Prayer Draw.\')};\n const beginTurn='
+          text,n=re.subn(prayer_pattern,prayer_replacement,text,count=1,flags=re.S)
+          if n!=1: raise SystemExit(f'drawPrayer replacement count={n}')
+
+          support_pattern=r' const drawSupport=\(\)=>\{.*?\};\n const discardChar='
+          support_replacement=' const drawSupport=()=>{if(!canDrawSupportDuringUpkeep({phase,currentPlayer,supportHand,supportDraws}))return;dispatchBattle({type:"DRAW_SUPPORT"});addLog(active===\'Gabriel\'&&supportDraws===0?\'📯 Divine Message: Gabriel gained 1 Prayer.\':\'✨ Support Draw.\')};\n const discardChar='
+          text,n=re.subn(support_pattern,support_replacement,text,count=1,flags=re.S)
+          if n!=1: raise SystemExit(f'drawSupport replacement count={n}')
+
+          deploy_pattern=r' const deploy=\(n\)=>\{.*?\};\n const switchTo='
+          deploy_replacement=' const deploy=n=>{if(currentPlayer===\'enemy\'||winner)return;if(!active)return addLog(\'⚔️ Choose an Active Character first.\');if(!canDeployDuringTurn({phase,currentPlayer,winner,hand,bench},n))return;const wasZero=prayers===0&&n===\'Andrew\';dispatchBattle({type:"DEPLOY_CHARACTER",character:n});addLog(`🪑 ${C[n].name} deployed to the Bench.`);if(n===\'Zacchaeus\')addLog(\'🌳 Climb Higher: Zacchaeus gained 1 Prayer.\');if(wasZero)addLog(\'🍞 I Know a Guy: Andrew gained 1 Prayer.\');if(n===\'Michael\')addLog(\'⚔️ Guardian\'s Wing: Michael gained 10 Protection.\');if(n===\'Barnabas\')addLog(\'🤝 Son of Encouragement: +5 HP to your Active Character.\')};\n const switchTo='
+          # Escape the apostrophe in the generated JS string.
+          deploy_replacement=deploy_replacement.replace("Guardian\\'s","Guardian\\\\'s")
+          text,n=re.subn(deploy_pattern,deploy_replacement,text,count=1,flags=re.S)
+          if n!=1: raise SystemExit(f'deploy replacement count={n}')
+
+          switch_pattern=r' const switchTo=\(n\)=>\{.*?\};\n const useSupport='
+          switch_replacement=' const switchTo=n=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:attacked?1:0,forcedReplacementPending:false}))return;if(!active)return;if(switchCooldown>0)return addLog(`🔄 Switch is on cooldown for ${switchCooldown} more turn(s).`);if(prayers<1)return addLog(\'🙏 Switching costs 1 Prayer.\');dispatchBattle({type:"SWITCH_CHARACTER",character:n});addLog(`🔄 ${C[n].name} switched into Active.`)};\n const useSupport='
+          text,n=re.subn(switch_pattern,switch_replacement,text,count=1,flags=re.S)
+          if n!=1: raise SystemExit(f'switchTo replacement count={n}')
+
+          path.write_text(text,encoding='utf-8')
+          print('Migration completed.')
+          PY
+
+      - name: Verify source anchors
+        run: |
+          grep -q 'dispatchBattle' src/App07.jsx
+          grep -q 'type:"BEGIN_UPKEEP"' src/App07.jsx
+          grep -q 'type:"DRAW_PRAYER"' src/App07.jsx
+          grep -q 'type:"DRAW_SUPPORT"' src/App07.jsx
+          grep -q 'type:"DEPLOY_CHARACTER"' src/App07.jsx
+          grep -q 'type:"SWITCH_CHARACTER"' src/App07.jsx
+
+      - name: Install dependencies
+        run: npm install
+      - name: Battle tests
+        run: npm run test:battle
+      - name: Production build
+        run: npm run build
+
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx
+          git commit -m "refactor: route safe battle UI actions through dispatcher"
+          git push
+
+      - name: Trigger Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main
+
+      - name: Remove migration workflow
+        run: |
+          git rm .github/workflows/migrate-battle-dispatch.yml
+          git commit -m "chore: remove one-time battle migration workflow"
+          git push
