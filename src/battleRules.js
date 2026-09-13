@@ -139,3 +139,33 @@ export function finishForcedReplacement(state) {
 export function hasLost({ active, bench, hand, deck }) {
   return !active && !(bench || []).length && !(hand || []).length && !(deck || []).length;
 }
+
+
+export function isPlayerTurn(state) {
+  return state?.currentPlayer === "player";
+}
+
+export function isUpkeep(state) {
+  return state?.phase === "draw";
+}
+
+export function isActionPhase(state) {
+  return state?.phase === "prepare" || state?.phase === "attack";
+}
+
+export function canDeployDuringTurn(state, character) {
+  return isPlayerTurn(state) && !state?.winner && state?.phase !== "setup" &&
+    (isUpkeep(state) || isActionPhase(state)) && canDeployToBench(state, character);
+}
+
+export function canDrawCharacterDuringUpkeep(state) {
+  return isPlayerTurn(state) && isUpkeep(state) && canDrawCharacter(state);
+}
+
+export function canDrawSupportDuringUpkeep(state) {
+  return isPlayerTurn(state) && isUpkeep(state) && canDrawSupport(state);
+}
+
+export function canAttackDuringAction(state) {
+  return isPlayerTurn(state) && isActionPhase(state) && canAttack(state);
+}
