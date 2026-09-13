@@ -1,7 +1,9 @@
-import {useState} from "react";
+import {useCallback,useState} from "react";
+import {applyAction} from "./battleActions";
 import {BATTLE_PHASES} from "./battleRules";
 
-// Phase 1.3: all battle-owned state is stored in one React state container.
+// Phase 1.3/1.4: battle-owned state lives in one container and state-changing
+// battle operations are routed through the authoritative action layer.
 const INITIAL_BATTLE_STATE=Object.freeze({
   active:null,
   bench:[],
@@ -58,19 +60,32 @@ export function createBattleState(overrides={}){
 export function useBattleState(){
   const [state,setState]=useState(()=>createBattleState());
 
-  const setField=(field,value)=>{
+  const setField=useCallback((field,value)=>{
     setState(previous=>({
       ...previous,
       [field]:isFn(value)?value(previous[field]):value
     }));
-  };
+  },[]);
+
+  const dispatchBattle=useCallback((action,options={})=>{
+    let result;
+    setState(previous=>{
+      result=applyAction(previous,action,options);
+      return result.ok?result.state:previous;
+    });
+    return result;
+  },[]);
+
+  const resetBattle=useCallback((overrides={})=>{
+    setState(createBattleState(overrides));
+  },[]);
 
   const setters={};
   Object.keys(INITIAL_BATTLE_STATE).forEach(field=>{
     setters[`set${field.charAt(0).toUpperCase()}${field.slice(1)}`]=value=>setField(field,value);
   });
 
-  return {state,...state,...setters};
+  return {state,...state,...setters,dispatchBattle,resetBattle};
 }
 
 export {INITIAL_BATTLE_STATE};
