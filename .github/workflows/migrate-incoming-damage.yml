@@ -1,0 +1,38 @@
+name: Migrate Incoming Damage
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrate App07 battle resolution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          if 'resolveEnemyDamage,applyIncomingDamage,statusTickDamage,advanceStatus' in s:
+              raise SystemExit(0)
+          s=s.replace('import {resolveAttack} from "./battleEngine.js";','import {resolveAttack,resolveEnemyDamage,applyIncomingDamage,statusTickDamage,advanceStatus} from "./battleEngine.js";')
+          old_end="const endTurn=()=>{const result=endTurnState({phase,currentPlayer,winner},{local:mode==='local'});if(!result.ok)return;const next=result.state;dispatchBattle({type:\"END_TURN\"},{local:mode==='local'});if(active==='GA'){setShield(s=>s+5);addLog('🔴 Presiding Presence: +5 Protection.')}const dot=(status.burn?8:0)+(status.plague?6:0);if(dot){setHp(h=>({...h,[active]:Math.max(0,h[active]-dot)}));addLog(`🔥☠️ Your status effects dealt ${dot} damage.`)}setStatus(s=>({...s,burn:Math.max(0,s.burn-1),plague:Math.max(0,s.plague-1),stun:Math.max(0,s.stun-1),stunTurns:Math.max(0,s.stunTurns-1)}));setUsed(u=>({...u,thomas:false,gabriel:false}));setSwitchCooldown(c=>Math.max(0,c-1));if(mode!=='local')addLog('🤖 Enemy turn begins.');else addLog(`👥 ${next.currentPlayer.toUpperCase()} Upkeep begins.`)};"
+          new_end="const endTurn=()=>{const result=endTurnState({phase,currentPlayer,winner},{local:mode==='local'});if(!result.ok)return;const next=result.state;dispatchBattle({type:\"END_TURN\"},{local:mode==='local'});if(active==='GA'){setShield(s=>s+5);addLog('🔴 Presiding Presence: +5 Protection.')}const dot=statusTickDamage(status);if(dot){setHp(h=>({...h,[active]:Math.max(0,h[active]-dot)}));addLog(`🔥☠️ Your status effects dealt ${dot} damage.`)}setStatus(advanceStatus);setUsed(u=>({...u,thomas:false,gabriel:false}));setSwitchCooldown(c=>Math.max(0,c-1));if(mode!=='local')addLog('🤖 Enemy turn begins.');else addLog(`👥 ${next.currentPlayer.toUpperCase()} Upkeep begins.`)};"
+          if old_end not in s: raise SystemExit('endTurn source not found')
+          s=s.replace(old_end,new_end)
+          start=s.index(' const enemyAction=()=>{')
+          end=s.index('\n useEffect(()=>{if(phase===BATTLE_PHASES.AI)',start)
+          new_enemy=""" const enemyAction=()=>{if(mode==='local')return;if(winner||!active)return;const result=resolveEnemyDamage({opponent:currentOpp,enemyHp,enemyStatus});result.logs.forEach(addLog);if(result.status.plague)setStatus(s=>({...s,plague:2}));if(result.status.stun){if(active==='Samuel'&&!used.samuel){setUsed(u=>({...u,samuel:true}));addLog('👂 Speak, Lord: Samuel ignored the first Stun.')}else setStatus(s=>({...s,stun:1,stunTurns:1}));}const incoming=applyIncomingDamage({amount:result.damage,active,hp,character:C[active],bench,shield});if(active==='Daniel'&&incoming.damage<result.damage)addLog('🦁 Lion\\'s Courage: incoming damage reduced by 25%.');if(active==='Peter'&&incoming.damage<result.damage)addLog('🪨 Stand Firm: Peter takes 15% less damage.');if(bench.includes('Ruth')&&incoming.damage<result.damage)addLog('🌾 Where You Go: Ruth protects the Active for 10% less damage.');setShield(0);setHp(h=>({...h,[active]:incoming.remainingHp}));if(incoming.prevented)addLog(`🛡️ Protection blocked ${incoming.prevented} damage.`);if(active==='Thomas'&&!used.thomas){setNextAttackBonus(v=>v+10);setUsed(u=>({...u,thomas:true}));addLog('🤔 Show Me: Thomas gains +10 damage on his next attack.')}if(active==='Philip'&&incoming.remainingHp>0&&incoming.remainingHp<=C[active].hp/2&&!used.philip){setUsed(u=>({...u,philip:true}));const occupied=new Set([active,...bench,...hand].filter(Boolean));const i=deck.findIndex(x=>!occupied.has(x));if(i>=0&&hand.length<3){const n=deck[i];setDeck(d=>d.filter((_,j)=>j!==i));setHand(h=>[...h,n]);addLog(`❓ Where Do We Buy Bread?: Philip drew ${C[n].name}.`)}else addLog('❓ Philip reached half HP, but no Character could be drawn.')}addLog(`🤖 ${currentOpp.name} attacked for ${incoming.actual}.`);if(incoming.remainingHp<=0){if(active==='Jonah'&&!used.jonah){setUsed(u=>({...u,jonah:true}));setHp(h=>({...h,Jonah:15}));addLog('🐋 Second Chance! Jonah survives at 15 HP.')}else if(bench.length){const n=bench[0];setBench(b=>b.slice(1));setActive(n);if(n==='Michael')setShield(10);addLog(`💀 ${C[active].name} defeated. ${C[n].name} is forced in.`)}else{setWinner(currentOpp.name);return}}const enemyDot=statusTickDamage(enemyStatus);if(enemyDot){setEnemyHp(v=>Math.max(0,v-enemyDot));addLog(`🔥☠️ Enemy status effects dealt ${enemyDot} damage.`)}setEnemyStatus(advanceStatus);setStatus(s=>({...s,stun:Math.max(0,s.stun-1),stunTurns:Math.max(0,s.stunTurns-1)}));setCurrentPlayer('player');setPhase(BATTLE_PHASES.UPKEEP);setCharacterDraws(0);setSupportDraws(0);setPrayerDrawn(false);setAttacked(false);setUsed(u=>({...u,thomas:false,gabriel:false}));setSwitchCooldown(c=>Math.max(0,c-1));addLog('🔔 Your Upkeep begins.')};"""
+          s=s[:start]+new_enemy+s[end:]
+          p.write_text(s)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/App07.jsx
+          git commit -m "Extract incoming damage and status resolution" || exit 0
+          git push
