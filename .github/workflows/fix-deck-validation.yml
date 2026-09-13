@@ -1,0 +1,39 @@
+name: Fix Deck Validation
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch deck validation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/App07.jsx')
+          s=p.read_text()
+          old="const saveDeck=d=>{setDeckList(d);localStorage.setItem('bca-deck07',JSON.stringify(d))};"
+          new="const saveDeck=d=>{setDeckList(d);localStorage.setItem('bca-deck07',JSON.stringify(d))};\n const deckValidation=useMemo(()=>{const chars=deckList.filter(x=>!x.startsWith('S:'));const sups=deckList.filter(x=>x.startsWith('S:'));const dup=chars.filter((x,i,a)=>a.indexOf(x)!==i);const invalid=deckList.filter(x=>x.startsWith('S:')?!supports.some(z=>'S:'+z.id===x):!C[x]);const errors=[];if(deckList.length>20)errors.push(`Deck has ${deckList.length}/20 cards.`);if(chars.length>12)errors.push(`Too many Characters: ${chars.length}/12.`);if(sups.length>8)errors.push(`Too many Supports: ${sups.length}/8.`);if(dup.length)errors.push('Duplicate Characters are not allowed.');if(invalid.length)errors.push('Deck contains an invalid card.');return {valid:!errors.length,errors};},[deckList]);"
+          if old not in s: raise SystemExit('saveDeck target not found')
+          s=s.replace(old,new,1)
+          old="const start=()=>{const chars=shuffle([...new Set(deckList.filter(x=>!x.startsWith('S:')&&availableChars.includes(x)))]);"
+          new="const start=()=>{if(!deckValidation.valid){setPage('deck');return;}const chars=shuffle([...new Set(deckList.filter(x=>!x.startsWith('S:')&&availableChars.includes(x)))]);"
+          if old not in s: raise SystemExit('start target not found')
+          s=s.replace(old,new,1)
+          old='<h3>Your Deck {deckList.length}/20</h3><div className="decklist">'
+          new='<h3>Your Deck {deckList.length}/20 {deckValidation.valid?<span>✓ LEGAL DECK</span>:<span>⚠️ OVER LIMIT</span>}</h3>{!deckValidation.valid&&<div><b>Your deck is not battle-ready.</b><ul>{deckValidation.errors.map((e,i)=><li key={i}>{e}</li>)}</ul><span>Remove cards below until you meet 20 total, 12 Characters, and 8 Supports.</span></div>}<div className="decklist">'
+          if old not in s: raise SystemExit('deck heading target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit fix and remove workflow
+        run: |
+          rm .github/workflows/fix-deck-validation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App07.jsx .github/workflows/fix-deck-validation.yml
+          git commit -m "Validate oversized decks without deleting cards"
+          git push
