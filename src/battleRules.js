@@ -102,6 +102,7 @@ export function switchActive(state, character, turnNumber) {
       bench: [...state.bench.filter(c => c !== character), state.active],
       prayers: state.prayers - BATTLE_RULES.switchPrayerCost,
       lastSwitchTurn: turnNumber,
+      switchCooldown: BATTLE_RULES.switchCooldownTurns,
       forcedReplacementPending: false
     }
   };
@@ -121,7 +122,16 @@ export function forcedReplacement(state, character) {
 }
 
 export function beginTurn(state) {
-  return { ...state, characterDraws: 0, supportDraws: 0, attacksUsed: 0 };
+  return {
+    ...state,
+    turnNo: (state.turnNo || 0) + 1,
+    characterDraws: 0,
+    supportDraws: 0,
+    attacksUsed: 0,
+    attacked: false,
+    prayerDrawn: false,
+    switchCooldown: Math.max(0, (state.switchCooldown || 0) - 1)
+  };
 }
 
 export function canAttack(state) {
@@ -209,12 +219,8 @@ export function beginUpkeepState(state) {
   return {
     ok: true,
     state: {
-      ...state,
-      phase: BATTLE_PHASES.UPKEEP,
-      characterDraws: 0,
-      supportDraws: 0,
-      attacksUsed: 0,
-      prayerDrawn: false
+      ...beginTurn(state),
+      phase: BATTLE_PHASES.UPKEEP
     }
   };
 }
