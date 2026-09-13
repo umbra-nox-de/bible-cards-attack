@@ -1,0 +1,55 @@
+name: Migrate Support To Pure Engine
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refactor Support effects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          e=Path('src/battleEngine.js')
+          s=e.read_text()
+          if 'export function resolveSupport' not in s:
+              marker='\nexport function applyIncomingDamage'
+              helper='''\nexport function resolveSupport({supportId,active,used={}}){\n  const result={ok:true,heal:0,prayerGain:0,shieldGain:0,enemyDamage:0,cleanseAll:false,cleanseStun:false,enemyWeaken:0,nextAttackBonus:0,used:{...used},message:""};\n  const paul=active==="Paul";\n  const icon={loaves:"🍞",armor:"🛡️",prayer:"🙏",trumpets:"📯",temple:"🏛️",manna:"🌤️",dove:"🕊️",commandments:"📜",ark:"🚢",sinai:"⛰️",courage:"🪨",redsea:"🌊"}[supportId]||"✨";\n  switch(supportId){\n    case "loaves": result.heal=paul?21:20; result.message=`${icon} Healed 20 HP.${paul?" ✉️ Paul receives 5% extra healing.":""}`; break;\n    case "armor": result.shieldGain=15; result.message=`${icon} Protection increased.`; break;\n    case "prayer": result.prayerGain=2; result.message="🙏 Gained 2 Prayers."; break;\n    case "trumpets": result.enemyDamage=15; result.message="📯 Dealt 15 damage."; break;\n    case "temple": result.prayerGain=3; result.message="🏛️ Gained 3 Prayers."; break;\n    case "manna": result.heal=paul?11:10; result.prayerGain=1; result.message=`🌤️ Healed 10 and gained 1 Prayer.${paul?" ✉️ Paul receives 5% extra healing.":""}`; break;\n    case "dove": result.cleanseAll=true; result.message="🕊️ Negative statuses removed."; break;\n    case "commandments": result.enemyWeaken=2; result.message="📜 Enemy weakened for 2 turns."; break;\n    case "ark": result.shieldGain=20; result.message="🚢 Protection increased."; break;\n    case "sinai": result.prayerGain=2; result.cleanseStun=true; result.message="⛰️ Gained 2 Prayer and removed Stun."; break;\n    case "courage": result.nextAttackBonus=15; result.message="🪨 Next attack gets +15 damage."; break;\n    case "redsea": result.enemyDamage=25; result.enemyWeaken=1; result.message="🌊 Dealt 25 damage and weakened enemy."; break;\n    default: return {ok:false,reason:"Unknown Support card."};\n  }\n  if(active==="Esther"&&!used.esther){result.prayerGain+=1;result.used.esther=true;result.message+=` 👑 Royal Favor: +1 Prayer.`;}\n  return result;\n}\n'''
+              if marker not in s: raise SystemExit('engine marker not found')
+              s=s.replace(marker,helper+marker,1)
+              e.write_text(s)
+
+          t=Path('scripts/verifyBattleEngine.mjs')
+          ts=t.read_text().replace('resolveAttack,resolveEnemyDamage,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain','resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain')
+          tests='''\n\nr=resolveSupport({supportId:"loaves",active:"David",used:{esther:false}});\nassert(r.ok&&r.heal===20&&r.message.startsWith("🍞 Healed 20 HP."),"Loaves should heal 20 HP");\nr=resolveSupport({supportId:"loaves",active:"Paul",used:{esther:false}});\nassert(r.heal===21,"Paul should receive 5% extra Loaves healing");\nr=resolveSupport({supportId:"armor",active:"David"});\nassert(r.shieldGain===15,"Armor of God should grant 15 Protection");\nr=resolveSupport({supportId:"temple",active:"David"});\nassert(r.prayerGain===3,"Temple of Solomon should grant 3 Prayers");\nr=resolveSupport({supportId:"manna",active:"David"});\nassert(r.heal===10&&r.prayerGain===1,"Manna should heal 10 and grant 1 Prayer");\nr=resolveSupport({supportId:"manna",active:"Paul"});\nassert(r.heal===11&&r.prayerGain===1,"Paul should receive extra Manna healing");\nr=resolveSupport({supportId:"dove",active:"David"});\nassert(r.cleanseAll,"Dove should cleanse negative statuses");\nr=resolveSupport({supportId:"commandments",active:"David"});\nassert(r.enemyWeaken===2,"Ten Commandments should apply 2-turn Weaken");\nr=resolveSupport({supportId:"redsea",active:"Esther",used:{esther:false}});\nassert(r.enemyDamage===25&&r.enemyWeaken===1&&r.prayerGain===1&&r.used.esther,"Red Sea should deal 25, Weaken, and trigger Esther");\n'''
+          if 'Loaves should heal 20 HP' not in ts:
+              ts=ts.replace('\nconsole.log("Battle engine checks passed.");',tests+'\nconsole.log("Battle engine checks passed.");')
+              t.write_text(ts)
+
+          a=Path('src/App07.jsx')
+          s=a.read_text()
+          s=s.replace('import {resolveAttack,resolveEnemyDamage,applyIncomingDamage,statusTickDamage,advanceStatus} from "./battleEngine.js";','import {resolveAttack,resolveEnemyDamage,resolveSupport,applyIncomingDamage,statusTickDamage,advanceStatus,applyPrayerGain} from "./battleEngine.js";')
+          start=s.index(' const useSupport=')
+          end=s.index('\n const endTurn=',start)
+          new=''' const useSupport=s=>{if(!canAttackDuringAction({phase,currentPlayer,active,attacksUsed:0,forcedReplacementPending:false}))return;if(!supportHand.some(x=>x===s||x?.id===s.id))return;dispatchBattle({type:"USE_SUPPORT",support:s.id});const result=resolveSupport({supportId:s.id,active,used});if(!result.ok)return;if(result.heal){setHp(h=>({...h,[active]:Math.min(C[active].hp,(h[active]??0)+result.heal)}));}if(result.prayerGain)setPrayers(p=>applyPrayerGain(p,result.prayerGain));if(result.shieldGain)setShield(v=>v+result.shieldGain);if(result.enemyDamage)setEnemyHp(v=>Math.max(0,v-result.enemyDamage));if(result.cleanseAll)setStatus({burn:0,plague:0,stun:0,stunTurns:0});if(result.cleanseStun)setStatus(v=>({...v,stun:0,stunTurns:0}));if(result.enemyWeaken)setEnemyStatus(v=>({...v,weaken:result.enemyWeaken}));if(result.nextAttackBonus)setNextAttackBonus(result.nextAttackBonus);if(result.used!==used)setUsed(result.used);addLog(result.message)};'''
+          s=s[:start]+new+s[end:]
+          a.write_text(s)
+          PY
+          npm install
+          npm run test:battle
+          npm run test:engine
+          npm run build
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/battleEngine.js scripts/verifyBattleEngine.mjs src/App07.jsx .github/workflows/migrate-support-engine.yml
+          git commit -m "Extract Support effects into battle engine"
+          git push
+          git rm .github/workflows/migrate-support-engine.yml
+          git commit -m "chore: remove temporary support engine migration workflow"
+          git push
