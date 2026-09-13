@@ -25,6 +25,42 @@ export function resolveEntryPassive({character,prayers=0}){
   return result;
 }
 
+export function resolveAttackPassive({active,character,attack,index=0,hp={},used={},random=Math.random}){
+  const [name,baseCost,baseDamage]=attack??[];
+  const result={
+    costReduction:0,
+    flatDamageBonus:0,
+    damageMultiplier:1,
+    critChance:0.12,
+    used:{...used},
+    name,
+    baseCost:Number(baseCost)||0,
+    baseDamage:Number(baseDamage)||0,
+    isUltimate:index===2,
+    crit:false
+  };
+  if(active==="WO")result.costReduction=1;
+  if(active==="Mark"&&!used.mark){result.costReduction=1;result.used.mark=true;}
+  if(active==="Gideon"&&!used.gideon){result.flatDamageBonus=10;result.used.gideon=true;}
+  if(active==="Samson")result.damageMultiplier=1.10;
+  if(active==="Timothy"&&(hp?.[active]??0)<=((character?.hp??0)/2))result.damageMultiplier=1.15;
+  if(active==="David")result.critChance=0.25;
+  result.crit=random()<result.critChance;
+  if(result.isUltimate)result.used.ga=true;
+  return result;
+}
+
+export function resolveAttackTriggers({active,random=Math.random}){
+  const result={prayerGain:0,status:{burn:0,plague:0},logs:[]};
+  if(active==="Matthew"&&random()<0.25){
+    result.prayerGain=1;
+    result.logs.push("🪙 Tax Collector: Matthew collected 1 Prayer.");
+  }
+  if(active==="Moses")result.status.plague=2;
+  if(active==="Elijah")result.status.burn=3;
+  return result;
+}
+
 export function resolveIncomingPassive({active,hp=0,maxHp=0,bench=[],amount=0}){
   let damage=Math.max(0,Number(amount)||0);
   const logs=[];
