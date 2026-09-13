@@ -14,6 +14,14 @@ export const BATTLE_RULES = Object.freeze({
   switchCooldownTurns: 2
 });
 
+export const BATTLE_PHASES = Object.freeze({
+  SETUP: "setup",
+  UPKEEP: "draw",
+  ACTION: "prepare",
+  AI: "ai",
+  ENDING: "ending"
+});
+
 export function uniqueCharacters(cards) {
   return [...new Set(cards)];
 }
@@ -132,7 +140,6 @@ export function canUseSupport(state) {
 }
 
 export function finishForcedReplacement(state) {
-  // Called at the start of the replacement character's next turn.
   return { ...state, forcedReplacementPending: false };
 }
 
@@ -140,32 +147,110 @@ export function hasLost({ active, bench, hand, deck }) {
   return !active && !(bench || []).length && !(hand || []).length && !(deck || []).length;
 }
 
+export function isControllableTurn(state) {
+  return state?.currentPlayer === "player" ||
+    state?.currentPlayer === "player1" ||
+    state?.currentPlayer === "player2";
+}
 
 export function isPlayerTurn(state) {
-  return state?.currentPlayer === "player";
+  return isControllableTurn(state);
 }
 
 export function isUpkeep(state) {
-  return state?.phase === "draw";
+  return state?.phase === BATTLE_PHASES.UPKEEP;
 }
 
 export function isActionPhase(state) {
-  return state?.phase === "prepare" || state?.phase === "attack";
+  return state?.phase === BATTLE_PHASES.ACTION;
 }
 
 export function canDeployDuringTurn(state, character) {
-  return isPlayerTurn(state) && !state?.winner && state?.phase !== "setup" &&
-    (isUpkeep(state) || isActionPhase(state)) && canDeployToBench(state, character);
+  return isControllableTurn(state) && !state?.winner &&
+    state?.phase !== BATTLE_PHASES.SETUP &&
+    (isUpkeep(state) || isActionPhase(state)) &&
+    canDeployToBench(state, character);
 }
 
 export function canDrawCharacterDuringUpkeep(state) {
-  return isPlayerTurn(state) && isUpkeep(state) && canDrawCharacter(state);
+  return isControllableTurn(state) && isUpkeep(state) && canDrawCharacter(state);
 }
 
 export function canDrawSupportDuringUpkeep(state) {
-  return isPlayerTurn(state) && isUpkeep(state) && canDrawSupport(state);
+  return isControllableTurn(state) && isUpkeep(state) && canDrawSupport(state);
+}
+
+export function canDrawPrayerDuringUpkeep(state) {
+  return isControllableTurn(state) && isUpkeep(state) && !state?.prayerDrawn;
+}
+
+export function canBeginAction(state) {
+  return isControllableTurn(state) && isUpkeep(state) && !state?.winner;
 }
 
 export function canAttackDuringAction(state) {
-  return isPlayerTurn(state) && isActionPhase(state) && canAttack(state);
+  return isControllableTurn(state) && isActionPhase(state) && canAttack(state);
+}
+
+export function canEndTurn(state) {
+  return isControllableTurn(state) && isActionPhase(state) && !state?.winner;
+}
+
+export function nextLocalPlayer(currentPlayer) {
+  return currentPlayer === "player1" ? "player2" : "player1";
+}
+
+export function beginUpkeepState(state) {
+  if (state?.winner || !isControllableTurn(state)) return { ok: false, reason: "Cannot begin Upkeep from the current turn state." };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: BATTLE_PHASES.UPKEEP,
+      characterDraws: 0,
+      supportDraws: 0,
+      attacksUsed: 0,
+      prayerDrawn: false
+    }
+  };
+}
+
+export function beginActionState(state) {
+  if (!canBeginAction(state)) return { ok: false, reason: "Action Phase can only begin during your Upkeep." };
+  return { ok: true, state: { ...state, phase: BATTLE_PHASES.ACTION } };
+}
+
+export function beginAiState(state) {
+  if (state?.winner || state?.currentPlayer !== "enemy") return { ok: false, reason: "AI turn is unavailable." };
+  return { ok: true, state: { ...state, phase: BATTLE_PHASES.AI } };
+}
+
+export function endTurnState(state, { local = false } = {}) {
+  if (!canEndTurn(state)) return { ok: false, reason: "Turn cannot end from the current state." };
+  if (local) {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        currentPlayer: nextLocalPlayer(state.currentPlayer),
+        phase: BATTLE_PHASES.UPKEEP,
+        characterDraws: 0,
+        supportDraws: 0,
+        attacksUsed: 0,
+        prayerDrawn: false
+      }
+    };
+  }
+  return {
+    ok: true,
+    state: {
+      ...state,
+      currentPlayer: "enemy",
+      phase: BATTLE_PHASES.AI,
+      characterDraws: 0,
+      supportDraws: 0,
+      attacksUsed: 0,
+      prayerDrawn: false
+    }
+  };
 }
